@@ -39,6 +39,8 @@ button.x{padding:1px 8px;border-color:var(--er);color:var(--er)}.tw{max-height:4
 <div class="modo"><button id="mS" class="on">SEMCITEC</button><button id="mF">FECEG</button></div>
 <div id="bF" class="hid"><label for="pa">Projetos por avaliador</label><input type="number" id="pa" min="1" max="20" value="5"></div>
 <div id="st">Carregando...</div>
+<div id="bY" class="hid"><label style="display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0 2px"><input type="checkbox" id="sy" checked style="width:auto"> Ao excluir um projeto aqui, remover também da planilha oficial (ele vai para a aba "Excluídos")</label>
+<div class="row" style="margin:4px 0 0;align-items:center"><span id="ss" class="mut"></span><button id="bre" class="hid">Reenviar pendentes</button></div></div>
 </section>
 <div class="modo" style="margin-bottom:12px"><button id="tP" class="on">Projetos</button><button id="tA">Avaliadores</button><button id="tD">Duplicados (0)</button></div>
 <section class="card" id="sP"><h2>Projetos <span class="mut" id="np"></span></h2>
@@ -52,14 +54,20 @@ button.x{padding:1px 8px;border-color:var(--er);color:var(--er)}.tw{max-height:4
 <div class="bar"><input id="qa" placeholder="Buscar avaliador..." aria-label="Buscar avaliador"></div>
 <div class="tw" id="ga"></div></section>
 <section class="card hid" id="sD"><h2>Cadastros repetidos</h2>
-<p class="mut" style="margin:0 0 10px">Projetos com o mesmo ID ou o mesmo título, e avaliadores com o mesmo nome ou e-mail. Cada grupo tem a mesma cor; exclua com ✕ o que não deve entrar na distribuição.</p>
+<p class="mut" style="margin:0 0 10px">Projetos com o mesmo ID ou o mesmo título, e avaliadores com o mesmo nome ou e-mail. Cada grupo tem a mesma cor; clique em uma célula para corrigir os dados (a lista se atualiza sozinha) ou exclua com ✕ o que não deve entrar na distribuição.</p>
 <div class="tw" id="gd"></div></section>
+<section class="card" id="sI"><h2>Instituições <span class="mut" id="nInst"></span></h2>
+<p class="mut" style="margin:0 0 10px">Resumo por instituição dos projetos e avaliadores carregados. Atualiza sozinho quando você edita ou exclui linhas. Confira antes de gerar o relatório.</p>
+<div class="tw" id="gInst"></div></section>
 <section class="card"><div id="wd" class="av" style="margin:0 0 12px" hidden></div><button id="bg" class="p">Gerar distribuição e relatório</button></section>
 <section id="out"></section>
 </main>
 <script>
 // ===== LINKS SALVOS: planilha de projetos fixa de cada núcleo =====
 const LINKS_SALVOS={SEMCITEC:{lp:"https://docs.google.com/spreadsheets/d/1ISTv8UmUl-6Qhzf6zfyHi6hGw1UBgzdt4kcRUOHNpTQ/edit?usp=drive_link",la:"",lr:""},FECEG:{lp:"https://docs.google.com/spreadsheets/d/1Zwdz0YqeqzLQ_t-KqQL_X6UKjQt-5A-Voq7ooB4JerE/edit?usp=sharing",la:"",lr:""}};
+// ===== SINCRONIZAÇÃO DAS EXCLUSÕES COM A PLANILHA OFICIAL =====
+// Cole aqui a URL (/exec) do Apps Script (arquivo Code.gs) e o mesmo TOKEN definido nele. Vazio = sincronização desligada.
+const SYNC={SEMCITEC:{url:"",token:""},FECEG:{url:"",token:""}};
 const CFG={SEMCITEC:{porAval:10,salas:["Sala 1","Sala 2","Sala 3","Sala 4"]},FECEG:{dataOnline:"13/10",porTurno:50}};
 const DIAS=["Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado","Domingo"];
 const EXTRAS=["verificação","telefone (autor 1)","telefone (autor 2)","telefone (autor 3)","e-mail orientadores(as)"];
@@ -106,7 +114,7 @@ function prepararProjetos(rows){const fk=(rows.length?Object.keys(rows[0]):[]).m
  const inst=mapInst(r["instituição/afiliação (autor 1)"]),c=norm(cat);ins.add(inst);
  return{id:String(r["id da submissão"]??"").trim(),titulo:limparHtml(r["título"]),cat,autores:aut.join("; "),inst,insts:ins,eixo:r["eixo"]||"",orient:orients.join("; "),orients,situacao:kS?String(r[kS]??"").trim():"",
  tipo:c.includes("relato")?"Relato":(c.includes("pesquisa")||c.includes("academica"))?"Pesquisa":"Outros",
- extra:modo==="FECEG"?Object.fromEntries(EXTRAS.filter(k=>k in r).map(k=>[k.charAt(0).toUpperCase()+k.slice(1),r[k]])):{}}}).filter(p=>p.id)}
+ extra:modo==="FECEG"?Object.fromEntries(EXTRAS.filter(k=>k in r).map(k=>[k.charAt(0).toUpperCase()+k.slice(1),r[k]])):{}}}).filter(p=>p.id).map(p=>(p.o={id:p.id,titulo:p.titulo,autor1:p.autores.split("; ")[0]||"",situacao:p.situacao},p))}
 function prepararAval(rows){if(!rows.length)return[];const ks=Object.keys(rows[0]),f=fn=>ks.find(fn),kn=f(k=>k.includes("nome")),ki=f(k=>k.includes("institui")),kd=f(k=>k.includes("dias")||k.includes("disponib")),ke=f(k=>k.includes("mail")),seen=new Set();
  return rows.map(r=>({nome:titleCase(r[kn]),inst:mapInst(r[ki]),disp:String(r[kd]||""),email:r[ke]||""})).filter(a=>a.nome&&!seen.has(a.nome+a.inst)&&seen.add(a.nome+a.inst))}
 function mapaRec(r){if(!r.length)return{};const ks=Object.keys(r[0]),ki=ks.find(k=>k.includes("id da submiss"))||ks.find(k=>/(^|\W)id(\W|$)/.test(k))||ks[0],kr=ks.find(k=>k.includes("recomend"))||ks.find(k=>k.includes("status"))||ks[1],m={};
@@ -176,6 +184,20 @@ function feceg(P,A,porAval){const{porTurno}=CFG.FECEG,w=wb(),avisos=[];A.forEach
  return{w:w.o,avisos,stats:{"Projetos":P.length,"Avaliadores":A.length,"Com avaliação online":online.length,"Com turno presencial":aloc.size}}}
 
 let P=[],A=[],cur=null;const sq={p:0,a:0};
+let PEND=[],envP=null;
+const syncOn=()=>!!(SYNC[modo]&&SYNC[modo].url);
+const ss=(m,c="")=>{$("ss").textContent=m;$("ss").style.color=c==="er"?"var(--er)":c==="ok"?"var(--ok)":"";$("bre").className=PEND.length?"":"hid"};
+function excluir(p){if(!syncOn()||!$("sy").checked)return;
+ const o=p.o||{id:p.id,titulo:p.titulo,autor1:String(p.autores||"").split("; ")[0]||"",situacao:p.situacao};PEND.push({modo,...o});enviar()}
+function enviar(){return envP||(envP=(async()=>{try{
+  while(PEND.length){const m=PEND[0].modo,lote=PEND.filter(x=>x.modo===m),c=SYNC[m];ss(`Atualizando a planilha oficial (${lote.length})...`);
+   const r=await fetch(c.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({token:c.token,itens:lote.map(({id,titulo,autor1,situacao})=>({id,titulo,autor1,situacao}))})});
+   const j=await r.json();if(!j.ok)throw new Error(j.erro||"resposta inválida");
+   PEND=PEND.filter(x=>!lote.includes(x));const nf=(j.resultados||[]).filter(x=>x==="nao_encontrado").length;
+   ss(nf?`Planilha atualizada, mas ${nf} projeto(s) não foram encontrados nela (talvez já removidos).`:`Planilha oficial atualizada (${lote.length} exclusão(ões)).`,nf?"":"ok")}
+  }catch(e){ss(`⚠ ${PEND.length} exclusão(ões) NÃO enviada(s) à planilha oficial: ${e.message}. Use "Reenviar pendentes".`,"er")}
+  finally{envP=null}})())}
+addEventListener("beforeunload",e=>{if(PEND.length){e.preventDefault();e.returnValue=""}});
 const tipoDe=c=>{c=norm(c);return c.includes("relato")?"Relato":(c.includes("pesquisa")||c.includes("academica"))?"Pesquisa":"Outros"};
 const V=(d,r,k)=>String(d.val?d.val(r,k):r[k]??""),isO=k=>/^o\d+$/.test(k),F={p:{},a:{},d:{}},DUP=[];let NG=0,dupVisto=0;
 const DS={
@@ -194,14 +216,19 @@ function aplicar(t){const d=DS[t],rows=d.rows(),q=fold($("q"+t).value.trim()),fs
 function bindGrid(t){const el=$("g"+t),d=DS[t];
  el.addEventListener("focusout",e=>{const td=e.target.closest&&e.target.closest("td[data-k]");if(!td)return;const r=d.rows()[+td.parentNode.dataset.i];if(!r)return;const k=td.dataset.k,v=td.textContent.trim();if(v!==V(d,r,k)){d.set(r,k,v);if(t==="p"&&isO(k)&&splitOrient(v).length>1){draw(t);return}refDup()}td.textContent=V(d,r,k)});
  el.addEventListener("input",e=>{const c=e.target.closest&&e.target.closest(".cf");if(!c)return;F[t][c.dataset.k]=c.value;aplicar(t)});
- el.addEventListener("click",e=>{const b=e.target.closest("[data-del]");if(!b)return;d.rows().splice(+b.closest("tr").dataset.i,1);draw(t)})}
+ el.addEventListener("click",e=>{const b=e.target.closest("[data-del]");if(!b)return;const i=+b.closest("tr").dataset.i,r=d.rows()[i];d.rows().splice(i,1);if(t==="p"&&r)excluir(r);draw(t)})}
 function refDup(){DUP.length=0;let g=0;
  const grupos=(t,kf,motivo)=>{const m=new Map();DS[t].rows().forEach(r=>{const k=kf(r);if(k){if(!m.has(k))m.set(k,[]);m.get(k).push(r)}});m.forEach(l=>{if(l.length>1){g++;l.forEach(r=>DUP.push({g,t,r,motivo}))}})};
  grupos("p",r=>r.id&&"i"+r.id,"ID repetido");grupos("p",r=>norm(r.titulo),"Título duplicado");grupos("a",r=>norm(r.nome),"Nome repetido");grupos("a",r=>fold(r.email).trim(),"E-mail repetido");NG=g;
  if(dupVisto&&dupVisto!==g)dupVisto=0;
  $("tD").textContent=`Duplicados (${g})`;$("tD").classList.toggle("al",!!g);$("wd").hidden=!g;$("wd").textContent=`⚠ ${g} grupo(s) de cadastros repetidos. Revise na aba Duplicados antes de gerar.`;
  $("bg").textContent=g&&dupVisto===g?`Gerar assim mesmo (${g} grupo(s) repetido(s))`:"Gerar distribuição e relatório";
- $("gd").innerHTML=g?"<table><tr>"+["Grupo","Cadastro","Motivo","ID / Nome","Título / E-mail","Instituição","Detalhe"].map((n,j)=>`<th>${n}<input class="cf" data-j="${j}" value="${esc(F.d[j]||"")}" placeholder="filtrar" aria-label="Filtrar ${n}"></th>`).join("")+"<th></th></tr>"+DUP.map((x,i)=>{const p=x.t==="p";return`<tr class="${x.g%2?"g1":""}" data-d="${i}"><td>${x.g}</td><td>${p?"Projeto":"Avaliador"}</td><td>${x.motivo}</td><td>${esc(p?x.r.id:x.r.nome)}</td><td>${esc(p?x.r.titulo:x.r.email)}</td><td>${esc(x.r.inst)}</td><td>${esc(p?x.r.autores:x.r.disp)}</td><td><button class="x" data-del="1" title="Excluir este cadastro">✕</button></td></tr>`}).join("")+"</table>":'<p style="padding:10px;color:var(--ok)">Nenhum cadastro repetido encontrado.</p>';aplicarDup()}
+ $("gd").innerHTML=g?"<table><tr>"+["Grupo","Cadastro","Motivo","Instituição","ID / Nome","Título / E-mail","Detalhe"].map((n,j)=>`<th>${n}<input class="cf" data-j="${j}" value="${esc(F.d[j]||"")}" placeholder="filtrar" aria-label="Filtrar ${n}"></th>`).join("")+"<th></th></tr>"+DUP.map((x,i)=>{const p=x.t==="p";return`<tr class="${x.g%2?"g1":""}" data-d="${i}"><td>${x.g}</td><td>${p?"Projeto":"Avaliador"}</td><td>${x.motivo}</td><td contenteditable="true" data-k="inst">${esc(x.r.inst)}</td><td contenteditable="true" data-k="${p?"id":"nome"}">${esc(p?x.r.id:x.r.nome)}</td><td contenteditable="true" data-k="${p?"titulo":"email"}">${esc(p?x.r.titulo:x.r.email)}</td><td contenteditable="true" data-k="${p?"autores":"disp"}">${esc(p?x.r.autores:x.r.disp)}</td><td><button class="x" data-del="1" title="Excluir este cadastro">✕</button></td></tr>`}).join("")+"</table>":'<p style="padding:10px;color:var(--ok)">Nenhum cadastro repetido encontrado.</p>';aplicarDup();refInst()}
+function refInst(){const m=new Map(),g=i=>{if(!m.has(i))m.set(i,{p:0,a:0});return m.get(i)};
+ P.forEach(p=>g(p.inst).p++);A.forEach(a=>g(a.inst).a++);
+ const l=[...m.entries()].sort((x,y)=>y[1].p-x[1].p||y[1].a-x[1].a||x[0].localeCompare(y[0]));
+ $("nInst").textContent=`(${l.length})`;
+ $("gInst").innerHTML=l.length?"<table><tr><th>Instituição</th><th>Projetos</th><th>Avaliadores</th></tr>"+l.map(([i,v])=>`<tr><td>${esc(i)}</td><td>${v.p}</td><td>${v.a}</td></tr>`).join("")+`<tr style="font-weight:700;background:#f2f6fc"><td>Total</td><td>${P.length}</td><td>${A.length}</td></tr></table>`:'<p style="padding:10px;color:var(--mut)">Nenhum dado carregado.</p>'}
 function aplicarDup(){const fs=Object.entries(F.d).filter(e=>e[1].trim()).map(([j,f])=>[+j,fold(f.trim())]);
  $("gd").querySelectorAll("tr[data-d]").forEach(tr=>{tr.hidden=!fs.every(([j,f])=>fold(tr.children[j].textContent).includes(f))})}
 function aba(x){[["P","sP"],["A","sA"],["D","sD"]].forEach(([k,id])=>{$("t"+k).classList.toggle("on",k===x);$(id).className=k===x?"card":"card hid"})}
@@ -244,12 +271,13 @@ async function gerar(){try{if(!P.length)return st("Nenhum projeto carregado.","e
  catch(e){st("Erro: "+e.message,"er")}}
 function carregar(){const l={...LINKS_SALVOS[modo]};try{Object.assign(l,JSON.parse(localStorage.getItem("sdcv_"+modo))||{})}catch(e){}$("la").value=l.la||"";$("lr").value=l.lr||""}
 function setModo(m){modo=m;$("mS").className=m==="SEMCITEC"?"on":"";$("mF").className=m==="FECEG"?"on":"";$("bR").className=m==="SEMCITEC"?"":"hid";$("bF").className=m==="FECEG"?"":"hid";
- $("out").innerHTML="";res={};A=[];$("qp").value=$("qa").value="";F.p={};F.a={};F.d={};dupVisto=0;aba("P");draw("a");carregar();lerProj();if($("la").value.trim())lerAval()}
-$("mS").onclick=()=>setModo("SEMCITEC");$("mF").onclick=()=>setModo("FECEG");$("bg").onclick=gerar;$("bl").onclick=lerProj;$("bca").onclick=lerAval;
+ $("out").innerHTML="";res={};A=[];$("bY").className=syncOn()?"":"hid";ss(syncOn()?"Sincronização com a planilha oficial ativa.":"","ok");$("qp").value=$("qa").value="";F.p={};F.a={};F.d={};dupVisto=0;aba("P");draw("a");carregar();lerProj();if($("la").value.trim())lerAval()}
+$("bre").onclick=enviar;$("mS").onclick=()=>setModo("SEMCITEC");$("mF").onclick=()=>setModo("FECEG");$("bg").onclick=gerar;$("bl").onclick=lerProj;$("bca").onclick=lerAval;
 $("bad").onclick=()=>{A.push({nome:"Novo avaliador",inst:"Outros/Sem Instituição",disp:"",email:""});$("qa").value="";draw("a");$("ga").scrollTop=1e9};
 $("qp").oninput=()=>draw("p");$("qa").oninput=()=>draw("a");$("tP").onclick=()=>aba("P");$("tA").onclick=()=>aba("A");$("tD").onclick=()=>aba("D");
-$("gd").onclick=e=>{const b=e.target.closest("[data-del]");if(!b)return;const x=DUP[+b.closest("tr").dataset.d],a=DS[x.t].rows(),i=a.indexOf(x.r);if(i>=0)a.splice(i,1);draw("p");draw("a")};
+$("gd").onclick=e=>{const b=e.target.closest("[data-del]");if(!b)return;const x=DUP[+b.closest("tr").dataset.d],a=DS[x.t].rows(),i=a.indexOf(x.r);if(i>=0){a.splice(i,1);if(x.t==="p")excluir(x.r)}draw("p");draw("a")};
 ["p","a"].forEach(bindGrid);
+$("gd").addEventListener("focusout",e=>{const td=e.target.closest&&e.target.closest("td[data-k]");if(!td)return;const x=DUP[+td.parentNode.dataset.d];if(!x)return;const d=DS[x.t],k=td.dataset.k,v=td.textContent.trim();if(v!==V(d,x.r,k)){d.set(x.r,k,v);draw("p");draw("a")}else td.textContent=V(d,x.r,k)});
 $("gd").addEventListener("input",e=>{const c=e.target.closest&&e.target.closest(".cf");if(!c)return;F.d[c.dataset.j]=c.value;aplicarDup()});
 $("bs").onclick=()=>{try{localStorage.setItem("sdcv_"+modo,JSON.stringify({la:$("la").value.trim(),lr:$("lr").value.trim()}));st("Links salvos neste navegador.","ok")}catch(e){st("Não foi possível salvar neste navegador.","er")}};
 setModo("SEMCITEC");
