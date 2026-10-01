@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sistema de Distribuição de Avaliadores SDCV</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--ink:#16263b;--mut:#5b6b80;--line:#d7dfea;--bg:#eef2f8;--ac:#1d5fd1;--ok:#1a7f4b;--er:#b3261e}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+main{max-width:1100px;margin:0 auto;padding:24px 16px 56px}
+h1{font-size:1.5rem;margin:0 0 6px}.sub{margin:0 0 20px;color:var(--mut)}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px}
+label{display:block;font-weight:600;margin:12px 0 4px}
+input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font:inherit}
+.modo{display:flex;gap:8px}.modo button{flex:1}
+button{font:inherit;font-weight:600;padding:9px 14px;border-radius:6px;border:1px solid var(--ac);background:#fff;color:var(--ac);cursor:pointer}
+button.p{background:var(--ac);color:#fff}button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+button:focus-visible,input:focus-visible{outline:3px solid #9cc0ff;outline-offset:1px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+#st{margin-top:12px;color:var(--mut)}#st.er{color:var(--er)}#st.ok{color:var(--ok)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stats div{border:1px solid var(--line);border-radius:8px;padding:10px}.stats b{display:block;font-size:1.5rem}
+.av{background:#fff7e0;border:1px solid #f0d78a;border-radius:8px;padding:8px 12px;margin-top:8px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 16px}.tabs button{padding:4px 10px;font-size:.85rem}
+.tw{overflow-x:auto;max-height:480px;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:.85rem}th,td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{position:sticky;top:0;background:#e6edf8}.hid{display:none}
+h2{font-size:1.1rem;margin:0 0 6px}.mut{color:var(--mut);font-weight:400;font-size:.85rem}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}.bar input{flex:1;min-width:200px;width:auto}
+td[contenteditable]:hover{background:#f7faff}td[contenteditable]:focus{outline:2px solid var(--ac);background:#f2f7ff}
+button.x{padding:1px 8px;border-color:var(--er);color:var(--er)}.tw{max-height:420px}.tw td:first-child{color:var(--mut)}
+.cf{display:block;width:100%;min-width:90px;margin-top:4px;padding:3px 5px;font:inherit;font-size:.8rem;font-weight:400}
+.g1 td{background:#fff7e0}
+#tD.al:not(.on){border-color:var(--er);color:var(--er)}
+</style></head>
+<body><main>
+<h1>Sistema de Distribuição de Avaliadores SDCV</h1>
+<p class="sub">Escolha o núcleo: os projetos são carregados automaticamente do Drive. Informe os avaliadores, confira e edite os dados em tela e gere o Excel.</p>
+<section class="card">
+<div class="modo"><button id="mS" class="on">SEMCITEC</button><button id="mF">FECEG</button></div>
+<div id="bF" class="hid"><label for="pa">Projetos por avaliador</label><input type="number" id="pa" min="1" max="20" value="5"></div>
+<div id="st">Carregando...</div>
+</section>
+<div class="modo" style="margin-bottom:12px"><button id="tP" class="on">Projetos</button><button id="tA">Avaliadores</button><button id="tD">Duplicados (0)</button></div>
+<section class="card" id="sP"><h2>Projetos <span class="mut" id="np"></span></h2>
+<p class="mut" style="margin:0">Carregados automaticamente da planilha do núcleo. Clique em uma célula para editar; ✕ exclui a linha.</p>
+<div class="bar"><input id="qp" placeholder="Buscar projeto..." aria-label="Buscar projeto"><button id="bl">Recarregar do Drive</button></div>
+<div class="tw" id="gp"></div></section>
+<section class="card hid" id="sA"><h2>Avaliadores <span class="mut" id="na"></span></h2>
+<label for="la">Link da planilha de avaliadores</label><input id="la" placeholder="Cole o link do Google Sheets (compartilhado como 'qualquer pessoa com o link')">
+<div id="bR"><label for="lr">Link do relatório de avaliação (recomendações) - opcional</label><input id="lr"></div>
+<div class="row" style="margin:12px 0"><button id="bca" class="p">Carregar avaliadores</button><button id="bad">+ Adicionar avaliador</button><button id="bs">Salvar links neste navegador</button></div>
+<div class="bar"><input id="qa" placeholder="Buscar avaliador..." aria-label="Buscar avaliador"></div>
+<div class="tw" id="ga"></div></section>
+<section class="card hid" id="sD"><h2>Cadastros repetidos</h2>
+<p class="mut" style="margin:0 0 10px">Projetos com o mesmo ID ou o mesmo título, e avaliadores com o mesmo nome ou e-mail. Cada grupo tem a mesma cor; exclua com ✕ o que não deve entrar na distribuição.</p>
+<div class="tw" id="gd"></div></section>
+<section class="card"><div id="wd" class="av" style="margin:0 0 12px" hidden></div><button id="bg" class="p">Gerar distribuição e relatório</button></section>
+<section id="out"></section>
+</main>
+<script>
+// ===== LINKS SALVOS: planilha de projetos fixa de cada núcleo =====
+const LINKS_SALVOS={SEMCITEC:{lp:"https://docs.google.com/spreadsheets/d/1ISTv8UmUl-6Qhzf6zfyHi6hGw1UBgzdt4kcRUOHNpTQ/edit?usp=drive_link",la:"",lr:""},FECEG:{lp:"https://docs.google.com/spreadsheets/d/1Zwdz0YqeqzLQ_t-KqQL_X6UKjQt-5A-Voq7ooB4JerE/edit?usp=sharing",la:"",lr:""}};
+const CFG={SEMCITEC:{porAval:10,salas:["Sala 1","Sala 2","Sala 3","Sala 4"]},FECEG:{dataOnline:"13/10",porTurno:50}};
+const DIAS=["Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado","Domingo"];
+const EXTRAS=["verificação","telefone (autor 1)","telefone (autor 2)","telefone (autor 3)","e-mail orientadores(as)"];
+const INST={"UNIFESP":["unifesp","universidade federal de sao paulo"],"USP":["usp","universidade de sao paulo"],"UFABC":["ufabc","universidade federal do abc"],"UFRJ":["ufrj"],"UFPE":["ufpe"],"UFRN":["universidade federal do rio grande do norte"],"UNESP":["unesp"],
+"FATEC Guarulhos":["fatec","fatec guarulhos","fatec gru","faculdade de tecnologia de guarulhos","fatec zona leste"],"FATEC São Paulo":["fatec sao paulo","fatec sp"],"ETEC Guarulhos":["etec guarulhos","etec de guarulhos"],
+"ENIAC":["eniac"],"UNG":["ung","universidade guarulhos","universidade de guarulhos","npdn"],"UNICID":["unicid"],"UNINOVE":["uninove"],"UNISA":["unisa"],"UNIANCHIETA":["unianchieta","universidade anchieta"],"UNICASTELO":["unicastelo"],
+"CRUZEIRO DO SUL":["cruzeiro do sul"],"ANHANGUERA":["anhanguera"],"FMU":["fmu"],"FIAP":["fiap"],"ESPM":["espm"],"INSPER":["insper"],"PUC-SP":["puc sp","puc sao paulo"],"UNIVESP":["univesp"],"MACKENZIE":["mackenzie"],
+"CENTRO PAULA SOUZA":["centro paula souza"],"CARLOS DRUMMOND":["carlos drummond"],"UNIFAVENI":["unifaveni","faveni"],"IFSP":["ifsp","instituto federal","intituto federal"],
+"E.E. Valderice T.M.C Marchini":["valderice"],"E.E. Antônio Grotkowsky":["grotkowsky"],"E.E. Maria Helena Barbosa Martins":["maria helena barbosa martins"],"E.E. Lydia Kitz Moreira":["lydia kitz"],
+"E.E. Professor Celso Piva":["celso piva"],"E.E. Maestro João Carlos Martins":["maestro joao carlos martins"],"E.E. Plínio Paulo Braga":["plinio paulo braga"],"E.E. Parque Jurema III":["parque jurema"],
+"E.E. Dr. José Leme Lopes":["leme lopes"],"E.E. Professor Mário Nakata":["mario nakata"],"E.E. Valdivino de Castro Pereira":["valdivino"],"E.E. Professor Alberto Bacan":["alberto bacan","alaberto bacan"],
+"E.E. Professor Hélio Polesel":["helio polesel"],"E.E. Guilhermino Rodrigues de Lima":["guilhermino"],"EEM Doutor César Cals":["cesar cals"],"E.E. Parque Primavera":["parque primavera"],
+"E.E. Professora Alice Chuery":["alice chuery"],"E.E. Professora Maria Angélica Soave":["angelica soave"],"Colégio Santa Rita":["santa rita"],"Colégio Madre Alix":["madre alix","madrealix"],
+"Colégio Universitário Alphaville":["universitario alphaville"],"Colégio Nahim Ahmad":["nahim ahmad"],"Prefeitura de Guarulhos":["prefeitura de guarulhos","prefeitura municipal de guarulhos"]};
+const KW=Object.entries(INST).flatMap(([i,ks])=>ks.map(k=>[new RegExp("(^|[^a-z0-9])"+k.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(?![a-z0-9])"),i,k.length])).sort((a,b)=>b[2]-a[2]);
+
+const $=id=>document.getElementById(id);
+let modo="SEMCITEC",res={};
+const st=(m,c="")=>{$("st").textContent=m;$("st").className=c};
+const fold=s=>String(s??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+const norm=s=>fold(s).replace(/[^a-z0-9]/g,"");
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const limparHtml=t=>String(t??"").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/<[^>]+>/g,"").trim();
+const titleCase=s=>String(s??"").trim().split(/\s+/).filter(Boolean).map(w=>/^(de|da|do|das|dos|e)$/i.test(w)?w.toLowerCase():w[0].toUpperCase()+w.slice(1).toLowerCase()).join(" ");
+const conf=(p,i)=>!i.startsWith("Outros/Sem")&&p.insts.has(i);
+function mapInst(n){const o=String(n??"").trim();if(!o)return"Outros/Sem Instituição";const f=fold(o);for(const[re,i]of KW)if(re.test(f))return i;return"Outros/"+o}
+function nomeAba(n,s){const b=String(n).replace(/[\\\/?*\[\]:]/g,"_").trim().slice(0,28)||"Aba";let x=b,i=2;while(s.has(x.toLowerCase()))x=b.slice(0,26)+"_"+i++;s.add(x.toLowerCase());return x}
+const wb=()=>{const s=new Set(),o={};return{o,add:(n,r)=>{if(r.length)o[nomeAba(n,s)]=r}}};
+
+function csvUrl(u){if(/output=csv|tqx=out:csv|\.csv(\?|$)/i.test(u))return u;if(/\/d\/e\//.test(u))return u.replace(/\/pub.*$/,"/pub?output=csv");
+ const m=u.match(/\/spreadsheets\/d\/([\w-]+)/);if(!m)return u;const g=(u.match(/gid=(\d+)/)||[])[1];return`https://docs.google.com/spreadsheets/d/${m[1]}/gviz/tq?tqx=out:csv${g?"&gid="+g:""}`}
+async function lerCsv(u){const r=await fetch(csvUrl(u));if(!r.ok)throw new Error("não consegui abrir o link ("+r.status+")");const t=await r.text();
+ if(/^\s*(<!doctype|<html)/i.test(t))throw new Error("o link não retornou uma planilha pública (compartilhe como 'qualquer pessoa com o link' ou publique na web)");
+ return Papa.parse(t,{header:true,skipEmptyLines:true,transformHeader:h=>h.trim().toLowerCase()}).data}
+
+const uniq=a=>{const s=new Set();return a.filter(x=>{const k=fold(x).trim();if(!k||s.has(k))return false;s.add(k);return true})};
+const splitOrient=t=>uniq(String(t??"").split(/\s*(?:[,;\/\\|&+\n]|\se\s)\s*/).map(x=>x.trim().replace(/^[\-–\s]+|[\-–\s]+$/g,"")).filter(n=>n.length>1&&!/^(nan|none|null|nd|n\/d)$/i.test(n)));
+const subm=p=>fold(p.situacao).trim().startsWith("submiss");
+let semSit=false;
+function prepararProjetos(rows){const fk=(rows.length?Object.keys(rows[0]):[]).map(k=>[k,fold(k).trim()]),sk=fk.find(([,f])=>f==="situacao")||fk.find(([,f])=>f.startsWith("situacao")),kS=sk&&sk[0],
+ ok=fk.filter(([,f])=>f.includes("orientador")&&!/mail|telefone|fone|contato|cpf|lattes/.test(f)),oo=ok.find(([,f])=>f.includes("nome"))||ok[0],kO=oo&&oo[0];semSit=!kS;
+ return rows.map(r=>{const cat=String(r["título da seção"]||r["categoria"]||"").trim(),aut=[],ins=new Set(),orients=splitOrient(kO?r[kO]:"");
+ for(let i=1;i<=4;i++){const n=String(r[`nome completo (autor ${i})`]||"").trim();if(n){aut.push(n);if(r[`instituição/afiliação (autor ${i})`])ins.add(mapInst(r[`instituição/afiliação (autor ${i})`]))}}
+ const inst=mapInst(r["instituição/afiliação (autor 1)"]),c=norm(cat);ins.add(inst);
+ return{id:String(r["id da submissão"]??"").trim(),titulo:limparHtml(r["título"]),cat,autores:aut.join("; "),inst,insts:ins,eixo:r["eixo"]||"",orient:orients.join("; "),orients,situacao:kS?String(r[kS]??"").trim():"",
+ tipo:c.includes("relato")?"Relato":(c.includes("pesquisa")||c.includes("academica"))?"Pesquisa":"Outros",
+ extra:modo==="FECEG"?Object.fromEntries(EXTRAS.filter(k=>k in r).map(k=>[k.charAt(0).toUpperCase()+k.slice(1),r[k]])):{}}}).filter(p=>p.id)}
+function prepararAval(rows){if(!rows.length)return[];const ks=Object.keys(rows[0]),f=fn=>ks.find(fn),kn=f(k=>k.includes("nome")),ki=f(k=>k.includes("institui")),kd=f(k=>k.includes("dias")||k.includes("disponib")),ke=f(k=>k.includes("mail")),seen=new Set();
+ return rows.map(r=>({nome:titleCase(r[kn]),inst:mapInst(r[ki]),disp:String(r[kd]||""),email:r[ke]||""})).filter(a=>a.nome&&!seen.has(a.nome+a.inst)&&seen.add(a.nome+a.inst))}
+function mapaRec(r){if(!r.length)return{};const ks=Object.keys(r[0]),ki=ks.find(k=>k.includes("id da submiss"))||ks.find(k=>/(^|\W)id(\W|$)/.test(k))||ks[0],kr=ks.find(k=>k.includes("recomend"))||ks.find(k=>k.includes("status"))||ks[1],m={};
+ r.forEach(x=>{const i=String(x[ki]??"").trim();if(i)m[i]=String(x[kr]??"").trim()||"NÃO AVALIADO"});return m}
+
+function relatorio(P,rec){const w=wb(),S=modo==="SEMCITEC",tem=S&&Object.keys(rec).length,R=p=>S?(rec[p.id]||"NÃO AVALIADO"):"N/A";
+ const cl=p=>p.orients.filter(Boolean),NO=Math.max(1,...P.map(p=>cl(p).length)),orCols=p=>Object.fromEntries(Array.from({length:NO},(_,i)=>["Orientador "+(i+1),cl(p)[i]||""]));
+ const base=p=>({"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,"Eixo":p.eixo,...orCols(p),"Situação":p.situacao,"Recomendação":R(p),...p.extra});
+ w.add("Geral",P.map(base));[...new Set(P.map(p=>p.cat))].forEach(c=>w.add(c||"Sem categoria",P.filter(p=>p.cat===c).map(base)));
+ if(tem){const g={};P.forEach(p=>(g[R(p)]??=[]).push(p));Object.entries(g).forEach(([r,l])=>w.add("REC "+r.toUpperCase(),l.map(base)));
+  w.add("Estatísticas Avaliação",Object.entries(g).map(([r,l])=>({"Recomendação":r,"Quantidade":l.length,"Percentual":(l.length/P.length*100).toFixed(1)+"%"})))}
+ const gi={};P.forEach(p=>(gi[p.inst]??=[]).push(p));
+ w.add("Instituições",Object.entries(gi).sort((a,b)=>b[1].length-a[1].length).map(([i,l])=>{const o={"Instituição":i,"Quantidade":l.length};if(tem){const n=l.filter(p=>R(p)!=="NÃO AVALIADO").length;o["Projetos Avaliados"]=n;o["Taxa Avaliação"]=(n/l.length*100).toFixed(1)+"%"}return o}));
+ const det=[];P.forEach(p=>cl(p).forEach(n=>det.push({"Orientador":n,"Projeto":p.titulo,"ID Projeto":p.id,"Recomendação":R(p)})));
+ const go={};det.forEach(d=>(go[d["Orientador"]]??=[]).push(d));
+ w.add("Orientadores",Object.entries(go).sort((a,b)=>b[1].length-a[1].length).map(([o,l])=>({"Orientador":o,"Quantidade de Projetos":l.length})));w.add("Orientadores Detalhado",det);return w.o}
+
+function semcitec(P,A){const{porAval,salas}=CFG.SEMCITEC,w=wb(),avisos=[],dias=DIAS.filter(d=>A.some(a=>fold(a.disp).includes(fold(d))));
+ if(!dias.length)avisos.push("Nenhum dia da semana foi encontrado na disponibilidade dos avaliadores.");
+ w.add("Matriz Conflito",P.flatMap(p=>A.map(a=>({"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Instituição":p.inst,"Avaliador":a.nome,"Instituição Avaliador":a.inst,"Conflito":conf(p,a.inst)?"SIM":"NÃO"}))));
+ w.add("Avaliadores por Dia",dias.flatMap(d=>A.filter(a=>fold(a.disp).includes(fold(d))).map(a=>({"Dia":d,"Avaliador":a.nome,"Instituição":a.inst,"Email":a.email,"Disponibilidade":a.disp}))));
+ const carga=new Map(),pre={};
+ P.forEach(p=>{const c=A.filter(a=>!conf(p,a.inst)&&(carga.get(a.nome)||0)<porAval).sort((x,y)=>(carga.get(x.nome)||0)-(carga.get(y.nome)||0))[0];if(c){pre[p.id]=c.nome;carga.set(c.nome,(carga.get(c.nome)||0)+1)}});
+ w.add("Pré-Avaliação",P.map(p=>({"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,"Avaliador Pré-Avaliação":pre[p.id]||"NÃO ALOCADO"})));
+ const aloc=new Set(),diaDe={};
+ dias.forEach(d=>{const disp=A.filter(a=>fold(a.disp).includes(fold(d))),seg=d===DIAS[0],cap=[DIAS[1],DIAS[2],DIAS[3]].includes(d)?7:10,S={};
+  salas.forEach(s=>S[s]={av:[],ins:new Set(),pr:[]});
+  disp.forEach(a=>{for(const s of(seg?[salas[0]]:salas)){const x=S[s];if(x.av.length<(seg?6:3)&&(a.inst.startsWith("Outros/Sem")||!x.ins.has(a.inst))){x.av.push(a);x.ins.add(a.inst);break}}});
+  const pend=P.filter(p=>!aloc.has(p.id)),rel=pend.filter(p=>p.tipo==="Relato"),pes=pend.filter(p=>p.tipo!=="Relato");
+  const ok=(p,x)=>![...x.ins].some(i=>conf(p,i)),put=(p,s,c)=>{S[s].pr.push(c?{...p,conflito:true}:p);aloc.add(p.id);diaDe[p.id]=d};
+  if(seg){const x=S[salas[0]];if(x.av.length){[...rel.filter(p=>ok(p,x)),...rel.filter(p=>!ok(p,x))].slice(0,5).forEach(p=>put(p,salas[0],!ok(p,x)));pes.filter(p=>ok(p,x)).slice(0,cap-x.pr.length).forEach(p=>put(p,salas[0]))}}
+  else{const x4=S[salas[3]];if(x4.av.length)rel.filter(p=>ok(p,x4)).slice(0,cap).forEach(p=>put(p,salas[3]));
+   const g=salas.slice(0,3).filter(s=>S[s].av.length);if(g.length){let k=0;pes.forEach(p=>{for(let t=0;t<g.length;t++){const s=g[k++%g.length];if(S[s].pr.length<cap&&ok(p,S[s])){put(p,s);break}}})}}
+  const rows=[];(seg?[salas[0]]:salas).forEach(s=>{const x=S[s];
+   rows.push({"Sala":s,"Tipo":"AVALIADORES","Detalhe":x.av.length?x.av.map(a=>`${a.nome} (${a.inst})`).join("; "):"NENHUM AVALIADOR ALOCADO"});
+   if(x.pr.length)x.pr.forEach(p=>rows.push({"Sala":s,"Tipo":"PROJETO","Título do Projeto":p.titulo+(p.conflito?" (CONFLITO)":""),"Categoria":p.cat,"Autores":p.autores,"Instituição (Projeto)":p.inst}));
+   else rows.push({"Sala":s,"Tipo":"PROJETO","Detalhe":"NENHUM PROJETO"});rows.push({})});
+  w.add(d,rows)});
+ const nd=P.filter(p=>!aloc.has(p.id));
+ w.add("Projetos Não Distribuídos",nd.map(p=>({"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,"Tipo":p.tipo,"Motivo":"Não alocado em nenhum dia"})));
+ w.add("Resumo Completo",P.map(p=>({"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,"Avaliador Pré-Avaliação":pre[p.id]||"NÃO ALOCADO","Dia Distribuição":diaDe[p.id]||"NÃO DISTRIBUÍDO","Status":pre[p.id]&&diaDe[p.id]?"COMPLETO":"PENDENTE"})));
+ const sp=P.filter(p=>!pre[p.id]).length;if(sp)avisos.push(`${sp} projeto(s) sem avaliador de pré-avaliação (limite de ${porAval} por avaliador ou conflito de instituição).`);
+ if(nd.length)avisos.push(`${nd.length} projeto(s) não foram distribuídos em nenhum dia.`);
+ return{w:w.o,avisos,stats:{"Projetos":P.length,"Avaliadores":A.length,"Distribuídos":aloc.size,"Não distribuídos":nd.length}}}
+
+function turnos(d){const{dataOnline}=CFG.FECEG,s=String(d||""),out=[];if(/online/i.test(s)||s.includes(dataOnline))out.push("online");
+ s.split(/[,;\n]/).forEach(t=>{const m=t.match(/(\d{2}\/\d{2}\/\d{2,4}).*?(\d{1,2})\s*h/i);if(m&&!/online/i.test(t)&&!t.includes(dataOnline)){const k=`${m[1]}_${+m[2]<12?"manhã":"tarde"}`;if(!out.includes(k))out.push(k)}});return out}
+function feceg(P,A,porAval){const{porTurno}=CFG.FECEG,w=wb(),avisos=[];A.forEach(a=>a.t=turnos(a.disp));
+ const dist=(pool,avs,n,max)=>{const c=new Map(),out=[];for(const p of pool){if(out.length>=max)break;const sel=[];
+  for(const a of avs.filter(a=>!conf(p,a.inst)&&(c.get(a.nome)||0)<porAval).sort((x,y)=>(c.get(x.nome)||0)-(c.get(y.nome)||0))){if(sel.length>=n)break;sel.push(a);c.set(a.nome,(c.get(a.nome)||0)+1)}
+  if(sel.length)out.push({...p,avals:sel})}return out};
+ const on=A.filter(a=>a.t.includes("online")),chaves=[...new Set(A.flatMap(a=>a.t).filter(t=>t!=="online"))].sort(),online=on.length?dist(P,on,1,P.length):[];
+ if(!on.length)avisos.push("Nenhum avaliador online encontrado.");else if(online.length<P.length)avisos.push(`Online: ${P.length-online.length} projeto(s) sem avaliador (${on.length} avaliadores × ${porAval} = ${on.length*porAval} vagas).`);
+ if(!chaves.length)avisos.push("Nenhum turno presencial encontrado na disponibilidade (esperado: data dd/mm/aa e horário, ex.: 21/10/25 08hs às 12hs).");
+ const nm=a=>a?a.nome:"NÃO ALOCADO",ni=a=>a?a.inst:"NÃO ALOCADO",lista=l=>l.map(a=>`${a.nome} (${a.inst})`).join("; ")||"NENHUM AVALIADOR",
+ colP=p=>({"ID Projeto":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst});
+ w.add("Online",[{"Sala":"Avaliação Online","Tipo":"AVALIADORES","Detalhe":lista(on)},...online.map(p=>({"Sala":"Avaliação Online","Tipo":"PROJETO",...colP(p),"Avaliador":nm(p.avals[0]),"Instituição Avaliador":ni(p.avals[0]),...p.extra}))]);
+ const aloc=new Set(),pres={};
+ chaves.forEach(k=>{const avs=A.filter(a=>a.t.includes(k)),ds=dist(P.filter(p=>!aloc.has(p.id)),avs,2,porTurno);ds.forEach(p=>{aloc.add(p.id);pres[p.id]=p.avals});
+  w.add(k.replace("_"," "),[{"Sala":"Salão de Artes","Tipo":"AVALIADORES","Detalhe":lista(avs)},...ds.map(p=>({"Sala":"Salão de Artes","Tipo":"PROJETO",...colP(p),"Avaliador 1":nm(p.avals[0]),"Instituição Avaliador 1":ni(p.avals[0]),"Avaliador 2":nm(p.avals[1]),"Instituição Avaliador 2":ni(p.avals[1]),...p.extra}))])});
+ const nd=P.filter(p=>!aloc.has(p.id));
+ w.add("Projetos Não Distribuídos",nd.map(p=>({"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,"Motivo":"Não alocado em nenhum turno presencial",...p.extra})));
+ const om=new Map(online.map(p=>[p.id,p.avals[0]]));
+ w.add("Resumo Completo",P.map(p=>{const o=om.get(p.id),r=pres[p.id]||[];return{"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,"Avaliador Online":nm(o),"Instituição Avaliador Online":ni(o),
+  "Avaliador Presencial 1":nm(r[0]),"Instituição Avaliador Presencial 1":ni(r[0]),"Avaliador Presencial 2":nm(r[1]),"Instituição Avaliador Presencial 2":ni(r[1]),"Total Avaliadores":(o?1:0)+r.length,...p.extra}}));
+ if(nd.length)avisos.push(`${nd.length} projeto(s) sem turno presencial.`);
+ return{w:w.o,avisos,stats:{"Projetos":P.length,"Avaliadores":A.length,"Com avaliação online":online.length,"Com turno presencial":aloc.size}}}
+
+let P=[],A=[],cur=null;const sq={p:0,a:0};
+const tipoDe=c=>{c=norm(c);return c.includes("relato")?"Relato":(c.includes("pesquisa")||c.includes("academica"))?"Pesquisa":"Outros"};
+const V=(d,r,k)=>String(d.val?d.val(r,k):r[k]??""),isO=k=>/^o\d+$/.test(k),F={p:{},a:{},d:{}},DUP=[];let NG=0,dupVisto=0;
+const DS={
+ p:{rows:()=>P,get cols(){const n=Math.max(1,...P.map(p=>p.orients.length));return[["id","ID"],["titulo","Título"],["cat","Categoria"],["autores","Autores"],["inst","Instituição"],["eixo","Eixo"],...Array.from({length:n},(_,i)=>["o"+i,"Orientador "+(i+1)]),["situacao","Situação"]]},
+  val:(r,k)=>isO(k)?r.orients[+k.slice(1)]||"":r[k],
+  set(r,k,v){if(isO(k)){const i=+k.slice(1);while(r.orients.length<=i)r.orients.push("");const ps=splitOrient(v);if(ps.length){r.orients.splice(i,1,...ps);if(ps.length>1)r.orients=uniq(r.orients)}else r.orients[i]=v;r.orient=r.orients.filter(Boolean).join("; ");return}
+   if(k==="inst"){v=mapInst(v);r.insts.delete(r.inst);r.insts.add(v)}if(k==="cat")r.tipo=tipoDe(v);r[k]=v}},
+ a:{rows:()=>A,cols:[["nome","Nome"],["inst","Instituição"],["disp","Disponibilidade"],["email","E-mail"]],
+  set(r,k,v){if(k==="nome")v=titleCase(v);if(k==="inst")v=mapInst(v);r[k]=v}}};
+function draw(t){const d=DS[t],rows=d.rows(),cols=d.cols;
+ $("g"+t).innerHTML=rows.length?`<table><tr><th>#</th>${cols.map(([k,n])=>`<th>${n}<input class="cf" data-k="${k}" value="${esc(F[t][k]||"")}" placeholder="filtrar" aria-label="Filtrar ${n}"></th>`).join("")}<th></th></tr>`+rows.map((r,i)=>`<tr data-i="${i}"><td>${i+1}</td>${cols.map(([k])=>`<td contenteditable="true" data-k="${k}">${esc(V(d,r,k))}</td>`).join("")}<td><button class="x" data-del="1" title="Excluir linha">✕</button></td></tr>`).join("")+"</table>":'<p style="padding:10px;color:var(--mut)">Nenhum dado carregado.</p>';
+ aplicar(t);refDup()}
+function aplicar(t){const d=DS[t],rows=d.rows(),q=fold($("q"+t).value.trim()),fs=Object.entries(F[t]).filter(e=>e[1].trim()).map(([k,f])=>[k,fold(f.trim())]);let n=0;
+ $("g"+t).querySelectorAll("tr[data-i]").forEach(tr=>{const r=rows[+tr.dataset.i],ok=(!q||fold(d.cols.map(([k])=>V(d,r,k)).join(" ")).includes(q))&&fs.every(([k,f])=>fold(V(d,r,k)).includes(f));tr.hidden=!ok;if(ok)n++});
+ $("n"+t).textContent=`(${n===rows.length?rows.length:n+" de "+rows.length})`}
+function bindGrid(t){const el=$("g"+t),d=DS[t];
+ el.addEventListener("focusout",e=>{const td=e.target.closest&&e.target.closest("td[data-k]");if(!td)return;const r=d.rows()[+td.parentNode.dataset.i];if(!r)return;const k=td.dataset.k,v=td.textContent.trim();if(v!==V(d,r,k)){d.set(r,k,v);if(t==="p"&&isO(k)&&splitOrient(v).length>1){draw(t);return}refDup()}td.textContent=V(d,r,k)});
+ el.addEventListener("input",e=>{const c=e.target.closest&&e.target.closest(".cf");if(!c)return;F[t][c.dataset.k]=c.value;aplicar(t)});
+ el.addEventListener("click",e=>{const b=e.target.closest("[data-del]");if(!b)return;d.rows().splice(+b.closest("tr").dataset.i,1);draw(t)})}
+function refDup(){DUP.length=0;let g=0;
+ const grupos=(t,kf,motivo)=>{const m=new Map();DS[t].rows().forEach(r=>{const k=kf(r);if(k){if(!m.has(k))m.set(k,[]);m.get(k).push(r)}});m.forEach(l=>{if(l.length>1){g++;l.forEach(r=>DUP.push({g,t,r,motivo}))}})};
+ grupos("p",r=>r.id&&"i"+r.id,"ID repetido");grupos("p",r=>norm(r.titulo),"Título duplicado");grupos("a",r=>norm(r.nome),"Nome repetido");grupos("a",r=>fold(r.email).trim(),"E-mail repetido");NG=g;
+ if(dupVisto&&dupVisto!==g)dupVisto=0;
+ $("tD").textContent=`Duplicados (${g})`;$("tD").classList.toggle("al",!!g);$("wd").hidden=!g;$("wd").textContent=`⚠ ${g} grupo(s) de cadastros repetidos. Revise na aba Duplicados antes de gerar.`;
+ $("bg").textContent=g&&dupVisto===g?`Gerar assim mesmo (${g} grupo(s) repetido(s))`:"Gerar distribuição e relatório";
+ $("gd").innerHTML=g?"<table><tr>"+["Grupo","Cadastro","Motivo","ID / Nome","Título / E-mail","Instituição","Detalhe"].map((n,j)=>`<th>${n}<input class="cf" data-j="${j}" value="${esc(F.d[j]||"")}" placeholder="filtrar" aria-label="Filtrar ${n}"></th>`).join("")+"<th></th></tr>"+DUP.map((x,i)=>{const p=x.t==="p";return`<tr class="${x.g%2?"g1":""}" data-d="${i}"><td>${x.g}</td><td>${p?"Projeto":"Avaliador"}</td><td>${x.motivo}</td><td>${esc(p?x.r.id:x.r.nome)}</td><td>${esc(p?x.r.titulo:x.r.email)}</td><td>${esc(x.r.inst)}</td><td>${esc(p?x.r.autores:x.r.disp)}</td><td><button class="x" data-del="1" title="Excluir este cadastro">✕</button></td></tr>`}).join("")+"</table>":'<p style="padding:10px;color:var(--ok)">Nenhum cadastro repetido encontrado.</p>';aplicarDup()}
+function aplicarDup(){const fs=Object.entries(F.d).filter(e=>e[1].trim()).map(([j,f])=>[+j,fold(f.trim())]);
+ $("gd").querySelectorAll("tr[data-d]").forEach(tr=>{tr.hidden=!fs.every(([j,f])=>fold(tr.children[j].textContent).includes(f))})}
+function aba(x){[["P","sP"],["A","sA"],["D","sD"]].forEach(([k,id])=>{$("t"+k).classList.toggle("on",k===x);$(id).className=k===x?"card":"card hid"})}
+
+function tab(sh,n,btn){const same=cur&&cur.sh===sh&&cur.n===n,fv=same?cur.fv:{};cur={sh,n,btn,fv};const rows=sh[n],MAX=300,cs=[...new Set(rows.flatMap(r=>Object.keys(r)))],v=$("tv");
+ v.innerHTML="<table><thead><tr>"+cs.map((c,j)=>`<th>${esc(c)}<input class="cf" data-j="${j}" value="${esc(fv[j]||"")}" placeholder="filtrar" aria-label="Filtrar ${esc(c)}"></th>`).join("")+'<th></th></tr></thead><tbody></tbody></table><p class="mut" style="padding:0 9px"></p>';
+ const tb=v.querySelector("tbody"),msg=v.querySelector("p"),pinta=()=>{const fs=Object.entries(fv).filter(e=>e[1].trim()).map(([j,f])=>[cs[+j],fold(f.trim())]),idx=[];rows.forEach((r,i)=>{if(fs.every(([k,f])=>fold(r[k]).includes(f)))idx.push(i)});
+  tb.innerHTML=idx.slice(0,MAX).map(i=>`<tr data-i="${i}">`+cs.map((c,j)=>`<td contenteditable="true" data-j="${j}">${esc(rows[i][c])}</td>`).join("")+'<td><button class="x" data-del="1" title="Excluir linha">✕</button></td></tr>').join("");
+  msg.textContent=idx.length>MAX?`Mostrando ${MAX} de ${idx.length} linhas (use os filtros para localizar); o Excel baixado tem todas.`:""};pinta();
+ v.oninput=e=>{const c=e.target.closest&&e.target.closest(".cf");if(!c)return;fv[c.dataset.j]=c.value;pinta()};
+ v.onfocusout=e=>{const td=e.target.closest&&e.target.closest("td[data-j]");if(!td)return;const r=rows[+td.parentNode.dataset.i];if(!r)return;const k=cs[+td.dataset.j],nv=td.textContent.trim();if(nv!==String(r[k]??""))r[k]=nv};
+ v.onclick=e=>{const b=e.target.closest("[data-del]");if(!b)return;rows.splice(+b.closest("tr").dataset.i,1);btn.textContent=`${n} (${rows.length})`;pinta()}}
+function baixar(n,sh){const b=XLSX.utils.book_new();Object.entries(sh).forEach(([k,r])=>XLSX.utils.book_append_sheet(b,XLSX.utils.json_to_sheet(r),k));XLSX.writeFile(b,n+".xlsx")}
+function render(d){const o=$("out");o.innerHTML="";
+ if(d){const s=document.createElement("section");s.className="card";s.innerHTML=`<div class="stats">${Object.entries(d.stats).map(([k,v])=>`<div><b>${v}</b>${k}</div>`).join("")}</div>${d.avisos.map(a=>`<div class="av">${esc(a)}</div>`).join("")}`;o.append(s)}
+ const c=document.createElement("section");c.className="card";c.innerHTML='<p style="margin:0 0 10px;color:var(--mut)">Clique em qualquer célula para editar (nomes, salas, etc.) e use ✕ para excluir a linha. O Excel baixado reflete suas alterações.</p>';let first;
+ Object.entries(res).forEach(([nome,sh])=>{const h=document.createElement("div"),t=document.createElement("div"),b=document.createElement("button"),tb=document.createElement("div");
+  t.className="row";t.style.cssText="margin:0 0 6px;align-items:center";t.innerHTML=`<strong>${esc(nome)}.xlsx</strong>`;b.className="p";b.textContent="Baixar";b.onclick=()=>baixar(nome,sh);t.append(b);tb.className="tabs";
+  Object.keys(sh).forEach(n=>{const x=document.createElement("button");x.textContent=`${n} (${sh[n].length})`;x.onclick=()=>tab(sh,n,x);tb.append(x);first=first||[sh,n,x]});h.append(t,tb);c.append(h)});
+ const v=document.createElement("div");v.className="tw";v.id="tv";c.append(v);o.append(c);if(first)tab(...first);o.scrollIntoView({behavior:"smooth"})}
+
+async function lerProj(){const n=++sq.p,l=LINKS_SALVOS[modo].lp;P=[];draw("p");if(!l)return st("Link dos projetos deste núcleo não configurado.","er");
+ st("Carregando projetos de "+modo+"...");
+ try{const rows=await lerCsv(l);if(n!==sq.p)return;const r=prepararProjetos(rows);if(!r.length)throw new Error("planilha de projetos vazia ou sem a coluna 'id da submissão'");
+  if(semSit)throw new Error("não encontrei a coluna 'Situação' na planilha, então não dá para filtrar só os projetos em Submissão");
+  const f=r.filter(subm);
+  if(!f.length)throw new Error("nenhum projeto com situação 'Submissão'. Situações encontradas: "+[...new Set(r.map(p=>String(p.situacao).trim()||"(vazio)"))].join(", "));
+  P=f;draw("p");st(`${P.length} projetos em Submissão carregados${r.length>f.length?` (${r.length-f.length} de outras situações ignorados)`:""}. Confira, edite ou exclua o que precisar e depois gere a distribuição.`,"ok")}
+ catch(e){if(n===sq.p)st("Erro: "+e.message,"er")}}
+async function lerAval(){const n=++sq.a,l=$("la").value.trim();if(!l)return st("Cole o link da planilha de avaliadores.","er");
+ st("Carregando avaliadores...");
+ try{const rows=await lerCsv(l);if(n!==sq.a)return;A=prepararAval(rows);draw("a");st(`${A.length} avaliadores carregados.`,"ok")}
+ catch(e){if(n===sq.a)st("Erro: "+e.message,"er")}}
+async function gerar(){try{if(!P.length)return st("Nenhum projeto carregado.","er");
+ if(NG&&dupVisto!==NG){dupVisto=NG;refDup();aba("D");$("sD").scrollIntoView({behavior:"smooth",block:"start"});return st(`Há ${NG} grupo(s) de cadastros repetidos. Revise na aba Duplicados (exclua com ✕ o que não deve entrar) e clique em "Gerar assim mesmo" para continuar.`,"er")}
+ const lr=$("lr").value.trim();st("Gerando...");const rec=modo==="SEMCITEC"&&lr?mapaRec(await lerCsv(lr)):{};
+ res={"Relatório de Inscrições SDC":relatorio(P,rec)};let d=null;
+ if(A.length){d=modo==="SEMCITEC"?semcitec(P,A):feceg(P,A,+$("pa").value||5);res["Distribuição "+modo]=d.w}
+ render(d);st(A.length?"Pronto. Edite as abas se precisar e baixe os arquivos.":"Relatório gerado. Sem avaliadores, a distribuição foi ignorada.","ok")}
+ catch(e){st("Erro: "+e.message,"er")}}
+function carregar(){const l={...LINKS_SALVOS[modo]};try{Object.assign(l,JSON.parse(localStorage.getItem("sdcv_"+modo))||{})}catch(e){}$("la").value=l.la||"";$("lr").value=l.lr||""}
+function setModo(m){modo=m;$("mS").className=m==="SEMCITEC"?"on":"";$("mF").className=m==="FECEG"?"on":"";$("bR").className=m==="SEMCITEC"?"":"hid";$("bF").className=m==="FECEG"?"":"hid";
+ $("out").innerHTML="";res={};A=[];$("qp").value=$("qa").value="";F.p={};F.a={};F.d={};dupVisto=0;aba("P");draw("a");carregar();lerProj();if($("la").value.trim())lerAval()}
+$("mS").onclick=()=>setModo("SEMCITEC");$("mF").onclick=()=>setModo("FECEG");$("bg").onclick=gerar;$("bl").onclick=lerProj;$("bca").onclick=lerAval;
+$("bad").onclick=()=>{A.push({nome:"Novo avaliador",inst:"Outros/Sem Instituição",disp:"",email:""});$("qa").value="";draw("a");$("ga").scrollTop=1e9};
+$("qp").oninput=()=>draw("p");$("qa").oninput=()=>draw("a");$("tP").onclick=()=>aba("P");$("tA").onclick=()=>aba("A");$("tD").onclick=()=>aba("D");
+$("gd").onclick=e=>{const b=e.target.closest("[data-del]");if(!b)return;const x=DUP[+b.closest("tr").dataset.d],a=DS[x.t].rows(),i=a.indexOf(x.r);if(i>=0)a.splice(i,1);draw("p");draw("a")};
+["p","a"].forEach(bindGrid);
+$("gd").addEventListener("input",e=>{const c=e.target.closest&&e.target.closest(".cf");if(!c)return;F.d[c.dataset.j]=c.value;aplicarDup()});
+$("bs").onclick=()=>{try{localStorage.setItem("sdcv_"+modo,JSON.stringify({la:$("la").value.trim(),lr:$("lr").value.trim()}));st("Links salvos neste navegador.","ok")}catch(e){st("Não foi possível salvar neste navegador.","er")}};
+setModo("SEMCITEC");
+</script></body></html>
