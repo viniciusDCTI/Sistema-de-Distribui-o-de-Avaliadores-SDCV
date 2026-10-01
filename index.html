@@ -39,12 +39,12 @@ button.x{padding:1px 8px;border-color:var(--er);color:var(--er)}.tw{max-height:4
 <div class="modo"><button id="mS" class="on">SEMCITEC</button><button id="mF">FECEG</button></div>
 <div id="bF" class="hid"><label for="pa">Projetos por avaliador</label><input type="number" id="pa" min="1" max="20" value="5"></div>
 <div id="st">Carregando...</div>
-<div id="bY" class="hid"><label style="display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0 2px"><input type="checkbox" id="sy" checked style="width:auto"> Ao excluir um projeto aqui, remover também da planilha oficial (ele vai para a aba "Excluídos")</label>
+<div id="bY" class="hid"><label style="display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0 2px"><input type="checkbox" id="sy" checked style="width:auto"> Sincronizar com a planilha oficial: edições e exclusões de projetos feitas aqui também são aplicadas lá (excluídos vão para a aba "Excluídos"; edições ficam em "Histórico de edições")</label>
 <div class="row" style="margin:4px 0 0;align-items:center"><span id="ss" class="mut"></span><button id="bre" class="hid">Reenviar pendentes</button></div></div>
 </section>
 <div class="modo" style="margin-bottom:12px"><button id="tP" class="on">Projetos</button><button id="tA">Avaliadores</button><button id="tD">Duplicados (0)</button></div>
 <section class="card" id="sP"><h2>Projetos <span class="mut" id="np"></span></h2>
-<p class="mut" style="margin:0">Carregados automaticamente da planilha do núcleo. Clique em uma célula para editar; ✕ exclui a linha.</p>
+<p class="mut" style="margin:0">Carregados automaticamente da planilha do núcleo. Clique em uma célula para editar; ✕ exclui a linha. Com a sincronização ligada, tudo é enviado à planilha oficial.</p>
 <div class="bar"><input id="qp" placeholder="Buscar projeto..." aria-label="Buscar projeto"><button id="bl">Recarregar do Drive</button></div>
 <div class="tw" id="gp"></div></section>
 <section class="card hid" id="sA"><h2>Avaliadores <span class="mut" id="na"></span></h2>
@@ -188,14 +188,18 @@ let PEND=[],envP=null;
 const syncOn=()=>!!(SYNC[modo]&&SYNC[modo].url);
 const ss=(m,c="")=>{$("ss").textContent=m;$("ss").style.color=c==="er"?"var(--er)":c==="ok"?"var(--ok)":"";$("bre").className=PEND.length?"":"hid"};
 function excluir(p){if(!syncOn()||!$("sy").checked)return;
- const o=p.o||{id:p.id,titulo:p.titulo,autor1:String(p.autores||"").split("; ")[0]||"",situacao:p.situacao};PEND.push({modo,...o});enviar()}
+ const o=p.o||{id:p.id,titulo:p.titulo,autor1:String(p.autores||"").split("; ")[0]||"",situacao:p.situacao};PEND.push({modo,acao:"excluir",...o});enviar()}
+function editarProj(p,k,v){if(!syncOn()||!$("sy").checked||!p||!p.o)return;
+ v=String(v??"").trim();if(k==="id"&&!v)return ss("⚠ O ID não pode ficar vazio: esta edição não foi enviada à planilha oficial.","er");
+ const campo=isO(k)?"orient":k,valor=isO(k)?p.orient:v;PEND.push({modo,acao:"editar",...p.o,campo,valor});
+ const o={...p.o};if(k==="id")o.id=v;if(k==="titulo")o.titulo=v;if(k==="autores")o.autor1=v.split(/\s*;\s*/)[0].trim();if(k==="situacao")o.situacao=v;p.o=o;enviar()}
 function enviar(){return envP||(envP=(async()=>{try{
   while(PEND.length){const m=PEND[0].modo,lote=PEND.filter(x=>x.modo===m),c=SYNC[m];ss(`Atualizando a planilha oficial (${lote.length})...`);
-   const r=await fetch(c.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({token:c.token,itens:lote.map(({id,titulo,autor1,situacao})=>({id,titulo,autor1,situacao}))})});
+   const r=await fetch(c.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({token:c.token,itens:lote.map(({acao,id,titulo,autor1,situacao,campo,valor})=>({acao,id,titulo,autor1,situacao,campo,valor}))})});
    const j=await r.json();if(!j.ok)throw new Error(j.erro||"resposta inválida");
-   PEND=PEND.filter(x=>!lote.includes(x));const nf=(j.resultados||[]).filter(x=>x==="nao_encontrado").length;
-   ss(nf?`Planilha atualizada, mas ${nf} projeto(s) não foram encontrados nela (talvez já removidos).`:`Planilha oficial atualizada (${lote.length} exclusão(ões)).`,nf?"":"ok")}
-  }catch(e){ss(`⚠ ${PEND.length} exclusão(ões) NÃO enviada(s) à planilha oficial: ${e.message}. Use "Reenviar pendentes".`,"er")}
+   PEND=PEND.filter(x=>!lote.includes(x));const rs=j.resultados||[],nf=rs.filter(x=>x==="nao_encontrado").length,rc=rs.filter(x=>x==="campo_invalido"||x==="autores_demais").length;
+   ss(rc?`Planilha atualizada, mas ${rc} edição(ões) foram recusadas (campo sem coluna na planilha ou mais autores do que colunas).`:nf?`Planilha atualizada, mas ${nf} item(ns) não foram encontrados nela (talvez já removidos).`:`Planilha oficial atualizada (${lote.length} alteração(ões)).`,rc?"er":nf?"":"ok")}
+  }catch(e){ss(`⚠ ${PEND.length} alteração(ões) NÃO enviada(s) à planilha oficial: ${e.message}. Use "Reenviar pendentes".`,"er")}
   finally{envP=null}})())}
 addEventListener("beforeunload",e=>{if(PEND.length){e.preventDefault();e.returnValue=""}});
 const tipoDe=c=>{c=norm(c);return c.includes("relato")?"Relato":(c.includes("pesquisa")||c.includes("academica"))?"Pesquisa":"Outros"};
@@ -214,7 +218,7 @@ function aplicar(t){const d=DS[t],rows=d.rows(),q=fold($("q"+t).value.trim()),fs
  $("g"+t).querySelectorAll("tr[data-i]").forEach(tr=>{const r=rows[+tr.dataset.i],ok=(!q||fold(d.cols.map(([k])=>V(d,r,k)).join(" ")).includes(q))&&fs.every(([k,f])=>fold(V(d,r,k)).includes(f));tr.hidden=!ok;if(ok)n++});
  $("n"+t).textContent=`(${n===rows.length?rows.length:n+" de "+rows.length})`}
 function bindGrid(t){const el=$("g"+t),d=DS[t];
- el.addEventListener("focusout",e=>{const td=e.target.closest&&e.target.closest("td[data-k]");if(!td)return;const r=d.rows()[+td.parentNode.dataset.i];if(!r)return;const k=td.dataset.k,v=td.textContent.trim();if(v!==V(d,r,k)){d.set(r,k,v);if(t==="p"&&isO(k)&&splitOrient(v).length>1){draw(t);return}refDup()}td.textContent=V(d,r,k)});
+ el.addEventListener("focusout",e=>{const td=e.target.closest&&e.target.closest("td[data-k]");if(!td)return;const r=d.rows()[+td.parentNode.dataset.i];if(!r)return;const k=td.dataset.k,v=td.textContent.trim();if(v!==V(d,r,k)){d.set(r,k,v);if(t==="p")editarProj(r,k,v);if(t==="p"&&isO(k)&&splitOrient(v).length>1){draw(t);return}refDup()}td.textContent=V(d,r,k)});
  el.addEventListener("input",e=>{const c=e.target.closest&&e.target.closest(".cf");if(!c)return;F[t][c.dataset.k]=c.value;aplicar(t)});
  el.addEventListener("click",e=>{const b=e.target.closest("[data-del]");if(!b)return;const i=+b.closest("tr").dataset.i,r=d.rows()[i];d.rows().splice(i,1);if(t==="p"&&r)excluir(r);draw(t)})}
 function refDup(){DUP.length=0;let g=0;
@@ -277,7 +281,7 @@ $("bad").onclick=()=>{A.push({nome:"Novo avaliador",inst:"Outros/Sem Instituiç�
 $("qp").oninput=()=>draw("p");$("qa").oninput=()=>draw("a");$("tP").onclick=()=>aba("P");$("tA").onclick=()=>aba("A");$("tD").onclick=()=>aba("D");
 $("gd").onclick=e=>{const b=e.target.closest("[data-del]");if(!b)return;const x=DUP[+b.closest("tr").dataset.d],a=DS[x.t].rows(),i=a.indexOf(x.r);if(i>=0){a.splice(i,1);if(x.t==="p")excluir(x.r)}draw("p");draw("a")};
 ["p","a"].forEach(bindGrid);
-$("gd").addEventListener("focusout",e=>{const td=e.target.closest&&e.target.closest("td[data-k]");if(!td)return;const x=DUP[+td.parentNode.dataset.d];if(!x)return;const d=DS[x.t],k=td.dataset.k,v=td.textContent.trim();if(v!==V(d,x.r,k)){d.set(x.r,k,v);draw("p");draw("a")}else td.textContent=V(d,x.r,k)});
+$("gd").addEventListener("focusout",e=>{const td=e.target.closest&&e.target.closest("td[data-k]");if(!td)return;const x=DUP[+td.parentNode.dataset.d];if(!x)return;const d=DS[x.t],k=td.dataset.k,v=td.textContent.trim();if(v!==V(d,x.r,k)){d.set(x.r,k,v);if(x.t==="p")editarProj(x.r,k,v);draw("p");draw("a")}else td.textContent=V(d,x.r,k)});
 $("gd").addEventListener("input",e=>{const c=e.target.closest&&e.target.closest(".cf");if(!c)return;F.d[c.dataset.j]=c.value;aplicarDup()});
 $("bs").onclick=()=>{try{localStorage.setItem("sdcv_"+modo,JSON.stringify({la:$("la").value.trim(),lr:$("lr").value.trim()}));st("Links salvos neste navegador.","ok")}catch(e){st("Não foi possível salvar neste navegador.","er")}};
 setModo("SEMCITEC");
