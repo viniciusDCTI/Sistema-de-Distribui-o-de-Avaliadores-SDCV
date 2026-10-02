@@ -44,13 +44,13 @@ button.lk{border:0;background:none;padding:0 4px;color:var(--ac);text-decoration
 <div id="bY" class="hid"><label style="display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0 2px"><input type="checkbox" id="sy" checked style="width:auto"> Sincronizar com a planilha oficial: edições e exclusões de projetos feitas aqui também são aplicadas lá (excluídos vão para a aba "Excluídos"; edições ficam em "Histórico de edições"; projetos excedentes do limite são copiados para a aba "Fila de espera")</label>
 <div class="row" style="margin:4px 0 0;align-items:center"><span id="ss" class="mut"></span><button id="bre" class="hid">Reenviar pendentes</button></div></div>
 </section>
-<div class="modo" style="margin-bottom:12px"><button id="tP" class="on">Projetos</button><button id="tX">Outras situações (0)</button><button id="tA">Avaliadores</button><button id="tD">Duplicados (0)</button><button id="tF">Fila de espera (0)</button></div>
-<section class="card" id="sP"><h2>Projetos <span class="mut" id="np"></span></h2>
+<div class="modo" style="margin-bottom:12px"><button id="tP" class="on">Projetos geral</button><button id="tS">Projetos aprovados (0)</button><button id="tF">Fila de espera (0)</button><button id="tX">Outras situações (0)</button><button id="tA">Avaliadores</button><button id="tD">Duplicados (0)</button></div>
+<section class="card" id="sP"><h2>Projetos geral <span class="mut" id="np"></span></h2>
 <p class="mut" style="margin:0">Carregados automaticamente da planilha do núcleo. Mostra projetos em Submissão, Avaliação e Aprovado (os demais ficam na aba "Outras situações"). Clique em uma célula para editar, troque a etapa na coluna Situação; ✕ exclui a linha. Com a sincronização ligada, tudo é enviado à planilha oficial.</p>
 <div class="bar"><input id="qp" placeholder="Buscar projeto..." aria-label="Buscar projeto"><button id="bl">Recarregar do Drive</button></div>
 <div class="tw" id="gp"></div></section>
 <section class="card hid" id="sX"><h2>Outras situações <span class="mut" id="nx"></span></h2>
-<p class="mut" style="margin:0">Projetos da planilha que não estão em Submissão, Avaliação nem Aprovado (Rejeitado, Agendado...). Eles não entram na distribuição. Mude a situação para trazê-los de volta para a aba Projetos.</p>
+<p class="mut" style="margin:0">Projetos da planilha que não estão em Submissão, Avaliação nem Aprovado (Rejeitado, Agendado...). Eles não entram na distribuição. Mude a situação para trazê-los de volta para a aba Projetos geral.</p>
 <div class="bar"><input id="qx" placeholder="Buscar projeto..." aria-label="Buscar projeto"></div>
 <div class="tw" id="gx"></div></section>
 <section class="card hid" id="sA"><h2>Avaliadores <span class="mut" id="na"></span></h2>
@@ -62,6 +62,10 @@ button.lk{border:0;background:none;padding:0 4px;color:var(--ac);text-decoration
 <section class="card hid" id="sD"><h2>Cadastros repetidos</h2>
 <p class="mut" style="margin:0 0 10px">Projetos com o mesmo ID ou o mesmo título, e avaliadores com o mesmo nome ou e-mail. Cada grupo tem a mesma cor; clique em uma célula para corrigir os dados (a lista se atualiza sozinha) ou exclua com ✕ o que não deve entrar na distribuição.</p>
 <div class="tw" id="gd"></div></section>
+<section class="card hid" id="sS"><h2>Projetos aprovados <span class="mut" id="ns"></span></h2>
+<p class="mut" style="margin:0">Projetos de "Projetos geral" que passaram pela separação por instituição (limite total em Instituições) e ficaram de fora da fila de espera. Só estes entram no relatório e na distribuição. A lista se atualiza sozinha; para editar ou excluir, use a aba Projetos geral.</p>
+<div class="bar"><input id="qs" placeholder="Buscar projeto..." aria-label="Buscar nos projetos aprovados"></div>
+<div class="tw" id="gs"></div></section>
 <section class="card hid" id="sF"><h2>Fila de espera <span class="mut" id="nf"></span></h2>
 <p class="mut" style="margin:0">Projetos excedentes ao limite total (veja "Limite total de projetos" em Instituições). Eles não entram no relatório nem na distribuição. A fila é recalculada sozinha quando você muda o limite, exclui ou edita projetos, e com a sincronização ligada é copiada para a aba "Fila de espera" da planilha oficial.</p>
 <div class="bar"><input id="qf" placeholder="Buscar projeto..." aria-label="Buscar na fila de espera"></div>
@@ -196,7 +200,7 @@ function feceg(P,A,porAval){const{porTurno}=CFG.FECEG,w=wb(),avisos=[];A.forEach
  return{w:w.o,avisos,stats:{"Projetos":P.length,"Avaliadores":A.length,"Com avaliação online":online.length,"Com turno presencial":aloc.size}}}
 
 let P=[],O=[],A=[],cur=null;const sq={p:0,a:0};
-let FILA=[],PROJ_OK=false,filaT=null;const filaSig={};
+let FILA=[],SELP=[],PROJ_OK=false,filaT=null;const filaSig={};
 let PEND=[],envP=null;
 const syncOn=()=>!!(SYNC[modo]&&SYNC[modo].url);
 const ss=(m,c="")=>{$("ss").textContent=m;$("ss").style.color=c==="er"?"var(--er)":c==="ok"?"var(--ok)":"";$("bre").className=PEND.length?"":"hid"};
@@ -228,7 +232,7 @@ const selSit=s=>{if(modo==="FECEG"){const e=etapaF(s),v=String(s??"").trim();ret
  const e=etapaDe(s),v=String(s??"").trim();return`<select class="sit" aria-label="Situação">${ETAPAS.map((n,i)=>`<option${i===e?" selected":""}>${n}</option>`).join("")}${e<0?(v?`<option selected>${esc(v)}</option>`:'<option value="" selected>(sem situação)</option>'):""}</select>`};
 function mudarEtapa(t,i,val){const L=t==="p"?P:O,p=L[i];if(!p||!val||val===p.situacao)return;
  p.situacao=val;editarProj(p,"situacao",val);const vaiP=emProj(val);let msg=`Situação alterada para "${val}".`;
- if(vaiP&&t==="x"){L.splice(i,1);P.push(p);msg+=' Projeto movido para a aba "Projetos".'}else if(!vaiP&&t==="p"){L.splice(i,1);O.push(p);msg+=' Projeto movido para a aba "Outras situações" (não entra na distribuição).'}
+ if(vaiP&&t==="x"){L.splice(i,1);P.push(p);msg+=' Projeto movido para a aba "Projetos geral".'}else if(!vaiP&&t==="p"){L.splice(i,1);O.push(p);msg+=' Projeto movido para a aba "Outras situações" (não entra na distribuição).'}
  draw("p");draw("x");st(msg,"ok")}
 const DS={
  p:{rows:()=>P,get cols(){return colsProj(P)},
@@ -273,6 +277,9 @@ function drawFila(){const{vg}=calcSel(),q=fold($("qf").value.trim()),mt=p=>`Limi
  L=FILA.map((p,i)=>[p,i+1]).filter(([p,k])=>!q||fold([k,p.id,p.titulo,p.situacao,p.cat,p.autores,p.inst].join(" ")).includes(q));
  $("nf").textContent=`(${L.length===FILA.length?FILA.length:L.length+" de "+FILA.length})`;$("tF").textContent=`Fila de espera (${FILA.length})`;
  $("gf").innerHTML=FILA.length?"<table><tr>"+["Posição","ID","Título","Situação","Categoria","Autores","Instituição","Motivo"].map(h=>`<th>${h}</th>`).join("")+"</tr>"+L.map(([p,k])=>`<tr><td>${k}</td><td>${esc(p.id)}</td><td>${esc(p.titulo)}</td><td>${esc(p.situacao)}</td><td>${esc(p.cat)}</td><td>${esc(p.autores)}</td><td>${esc(p.inst)}</td><td>${esc(mt(p))}</td></tr>`).join("")+"</table>":'<p style="padding:10px;color:var(--ok)">Nenhum projeto excedente: todos cabem no limite.</p>'}
+function drawSel(){const q=fold($("qs").value.trim()),L=SELP.map((p,i)=>[p,i+1]).filter(([p,k])=>!q||fold([k,p.id,p.titulo,p.situacao,p.cat,p.autores,p.inst,p.eixo].join(" ")).includes(q));
+ $("ns").textContent=`(${L.length===SELP.length?SELP.length:L.length+" de "+SELP.length})`;$("tS").textContent=`Projetos aprovados (${SELP.length})`;
+ $("gs").innerHTML=SELP.length?"<table><tr>"+["#","ID","Título","Situação","Categoria","Autores","Instituição","Eixo"].map(h=>`<th>${h}</th>`).join("")+"</tr>"+L.map(([p,k])=>`<tr><td>${k}</td><td>${esc(p.id)}</td><td>${esc(p.titulo)}</td><td>${esc(p.situacao)}</td><td>${esc(p.cat)}</td><td>${esc(p.autores)}</td><td>${esc(p.inst)}</td><td>${esc(p.eixo)}</td></tr>`).join("")+"</table>":'<p style="padding:10px;color:var(--mut)">Nenhum projeto aprovado dentro do limite.</p>'}
 const sigFila=()=>modo+"|"+limAtual()+"|"+FILA.map(p=>[p.id,p.titulo,p.situacao,p.inst].join("~")).join("¦");
 function agendarFila(){clearTimeout(filaT);if(!PROJ_OK||!syncOn()||!$("sy").checked||filaSig[modo]===sigFila())return;const m=modo;filaT=setTimeout(()=>enviarFila(m),2000)}
 async function enviarFila(m){if(m!==modo||!PROJ_OK)return;await envP;if(m!==modo||!PROJ_OK)return;
@@ -293,10 +300,10 @@ function refInst(){const m=new Map(),g=i=>{if(!m.has(i))m.set(i,{p:0,a:0,r:{}});
  const lim=limAtual(),{sel,fila,vg,q}=calcSel(),acc=sel.length;
  $("resCota").textContent=P.length?(q.cabe?`Todos os ${P.length} projetos cabem no limite.`:`Teto por instituição: ${q.teto} · aceitos ${acc} de ${P.length} projetos.`):"";
  $("nInst").textContent=`(${l.length})`;
- $("gInst").innerHTML=l.length?"<table><tr><th>Instituição</th><th>Projetos</th><th>Avaliadores</th>"+cols.map(c=>`<th>${esc(c)}</th>`).join("")+`<th>Vagas (limite ${lim})</th><th>Excedente</th></tr>`+l.map(([i,v],k)=>{const ex=v.p-(vg.get(i)||0);return`<tr><td>${esc(i)}</td><td>${v.p}</td><td>${v.a}</td>${cols.map(c=>{const n=v.r[c]||0;return n?`<td><button class="lk" data-ins="${esc(i)}" data-rc="${esc(c)}" title="Ver os projetos">${n}</button></td>`:"<td>0</td>"}).join("")}<td><b>${vg.get(i)||0}</b></td><td${ex?' style="color:var(--er)"':""}>${ex}</td></tr>`}).join("")+`<tr style="font-weight:700;background:#f2f6fc"><td>Total</td><td>${P.length}</td><td>${A.length}</td>${cols.map(c=>`<td>${l.reduce((a,[,v])=>a+(v.r[c]||0),0)}</td>`).join("")}<td>${acc}</td><td>${P.length-acc}</td></tr></table>`:'<p style="padding:10px;color:var(--mut)">Nenhum dado carregado.</p>';detInst();FILA=fila;drawFila();agendarFila()}
+ $("gInst").innerHTML=l.length?"<table><tr><th>Instituição</th><th>Projetos</th><th>Avaliadores</th>"+cols.map(c=>`<th>${esc(c)}</th>`).join("")+`<th>Vagas (limite ${lim})</th><th>Excedente</th></tr>`+l.map(([i,v],k)=>{const ex=v.p-(vg.get(i)||0);return`<tr><td>${esc(i)}</td><td>${v.p}</td><td>${v.a}</td>${cols.map(c=>{const n=v.r[c]||0;return n?`<td><button class="lk" data-ins="${esc(i)}" data-rc="${esc(c)}" title="Ver os projetos">${n}</button></td>`:"<td>0</td>"}).join("")}<td><b>${vg.get(i)||0}</b></td><td${ex?' style="color:var(--er)"':""}>${ex}</td></tr>`}).join("")+`<tr style="font-weight:700;background:#f2f6fc"><td>Total</td><td>${P.length}</td><td>${A.length}</td>${cols.map(c=>`<td>${l.reduce((a,[,v])=>a+(v.r[c]||0),0)}</td>`).join("")}<td>${acc}</td><td>${P.length-acc}</td></tr></table>`:'<p style="padding:10px;color:var(--mut)">Nenhum dado carregado.</p>';detInst();FILA=fila;SELP=sel;drawFila();drawSel();agendarFila()}
 function aplicarDup(){const fs=Object.entries(F.d).filter(e=>e[1].trim()).map(([j,f])=>[+j,fold(f.trim())]);
  $("gd").querySelectorAll("tr[data-d]").forEach(tr=>{tr.hidden=!fs.every(([j,f])=>fold(tr.children[j].dataset.v??tr.children[j].textContent).includes(f))})}
-function aba(x){[["P","sP"],["X","sX"],["A","sA"],["D","sD"],["F","sF"]].forEach(([k,id])=>{$("t"+k).classList.toggle("on",k===x);$(id).className=k===x?"card":"card hid"})}
+function aba(x){[["P","sP"],["X","sX"],["A","sA"],["D","sD"],["F","sF"],["S","sS"]].forEach(([k,id])=>{$("t"+k).classList.toggle("on",k===x);$(id).className=k===x?"card":"card hid"})}
 
 function tab(sh,n,btn){const same=cur&&cur.sh===sh&&cur.n===n,fv=same?cur.fv:{};cur={sh,n,btn,fv};const rows=sh[n],MAX=300,cs=[...new Set(rows.flatMap(r=>Object.keys(r)))],v=$("tv");
  v.innerHTML="<table><thead><tr>"+cs.map((c,j)=>`<th>${esc(c)}<input class="cf" data-j="${j}" value="${esc(fv[j]||"")}" placeholder="filtrar" aria-label="Filtrar ${esc(c)}"></th>`).join("")+'<th></th></tr></thead><tbody></tbody></table><p class="mut" style="padding:0 9px"></p>';
@@ -342,9 +349,9 @@ async function gerar(){try{if(!P.length)return st("Nenhum projeto carregado.","e
  render(d);st((A.length?"Pronto. Edite as abas se precisar e baixe os arquivos.":"Relatório gerado. Sem avaliadores, a distribuição foi ignorada.")+(fila.length?` ${fila.length} excedente(s) ficaram de fora (fila de espera).`:""),"ok")}
  catch(e){st("Erro: "+e.message,"er")}}
 function carregar(){const l={...LINKS_SALVOS[modo]};try{Object.assign(l,JSON.parse(localStorage.getItem("sdcv_"+modo))||{})}catch(e){}$("la").value=l.la||"";$("lr").value=l.lr||""}
-function setModo(m){modo=m;PROJ_OK=false;clearTimeout(filaT);P=[];O=[];FILA=[];$("lim").value=LIMITES[m];$("qf").value="";$("mS").className=m==="SEMCITEC"?"on":"";$("mF").className=m==="FECEG"?"on":"";$("bR").className=m==="SEMCITEC"?"":"hid";$("bF").className=m==="FECEG"?"":"hid";
+function setModo(m){modo=m;PROJ_OK=false;clearTimeout(filaT);P=[];O=[];FILA=[];SELP=[];$("lim").value=LIMITES[m];$("qf").value=$("qs").value="";$("mS").className=m==="SEMCITEC"?"on":"";$("mF").className=m==="FECEG"?"on":"";$("bR").className=m==="SEMCITEC"?"":"hid";$("bF").className=m==="FECEG"?"":"hid";
  $("out").innerHTML="";res={};A=[];$("bY").className=syncOn()?"":"hid";ss(syncOn()?"Sincronização com a planilha oficial ativa.":"","ok");$("qp").value=$("qa").value=$("qx").value="";F.p={};F.x={};F.a={};F.d={};dupVisto=0;aba("P");draw("a");carregar();lerProj();if($("la").value.trim())lerAval()}
-$("bre").onclick=()=>{enviar();agendarFila()};$("tF").onclick=()=>aba("F");$("qf").oninput=drawFila;$("sy").onchange=agendarFila;$("mS").onclick=()=>setModo("SEMCITEC");$("mF").onclick=()=>setModo("FECEG");$("bg").onclick=gerar;$("bl").onclick=lerProj;$("bca").onclick=lerAval;
+$("bre").onclick=()=>{enviar();agendarFila()};$("tF").onclick=()=>aba("F");$("tS").onclick=()=>aba("S");$("qs").oninput=drawSel;$("qf").oninput=drawFila;$("sy").onchange=agendarFila;$("mS").onclick=()=>setModo("SEMCITEC");$("mF").onclick=()=>setModo("FECEG");$("bg").onclick=gerar;$("bl").onclick=lerProj;$("bca").onclick=lerAval;
 $("bad").onclick=()=>{A.push({nome:"Novo avaliador",inst:"Outros/Sem Instituição",disp:"",email:""});$("qa").value="";draw("a");$("ga").scrollTop=1e9};
 $("qp").oninput=()=>draw("p");$("qa").oninput=()=>draw("a");$("tP").onclick=()=>aba("P");$("tX").onclick=()=>aba("X");$("qx").oninput=()=>draw("x");$("tA").onclick=()=>aba("A");$("tD").onclick=()=>aba("D");
 $("gd").onclick=e=>{const b=e.target.closest("[data-del]");if(!b)return;const x=DUP[+b.closest("tr").dataset.d],a=DS[x.t].rows(),i=a.indexOf(x.r);if(i>=0){a.splice(i,1);if(x.t==="p")excluir(x.r)}draw("p");draw("a")};
