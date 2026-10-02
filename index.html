@@ -45,11 +45,11 @@ select.sit{font:inherit;font-size:.85rem;padding:3px 4px;border:1px solid var(--
 </section>
 <div class="modo" style="margin-bottom:12px"><button id="tP" class="on">Projetos</button><button id="tX">Outras situações (0)</button><button id="tA">Avaliadores</button><button id="tD">Duplicados (0)</button></div>
 <section class="card" id="sP"><h2>Projetos <span class="mut" id="np"></span></h2>
-<p class="mut" style="margin:0">Carregados automaticamente da planilha do núcleo. Mostra projetos em Submissão e em Avaliação (os demais ficam na aba "Outras situações"). Clique em uma célula para editar, troque a etapa na coluna Situação; ✕ exclui a linha. Com a sincronização ligada, tudo é enviado à planilha oficial.</p>
+<p class="mut" style="margin:0">Carregados automaticamente da planilha do núcleo. Mostra projetos em Submissão, Avaliação e Aprovado (os demais ficam na aba "Outras situações"). Clique em uma célula para editar, troque a etapa na coluna Situação; ✕ exclui a linha. Com a sincronização ligada, tudo é enviado à planilha oficial.</p>
 <div class="bar"><input id="qp" placeholder="Buscar projeto..." aria-label="Buscar projeto"><button id="bl">Recarregar do Drive</button></div>
 <div class="tw" id="gp"></div></section>
 <section class="card hid" id="sX"><h2>Outras situações <span class="mut" id="nx"></span></h2>
-<p class="mut" style="margin:0">Projetos da planilha que não estão em Submissão nem em Avaliação (Aprovado, Rejeitado, Agendado...). Eles não entram na distribuição. Mude a situação para trazê-los de volta para a aba Projetos.</p>
+<p class="mut" style="margin:0">Projetos da planilha que não estão em Submissão, Avaliação nem Aprovado (Rejeitado, Agendado...). Eles não entram na distribuição. Mude a situação para trazê-los de volta para a aba Projetos.</p>
 <div class="bar"><input id="qx" placeholder="Buscar projeto..." aria-label="Buscar projeto"></div>
 <div class="tw" id="gx"></div></section>
 <section class="card hid" id="sA"><h2>Avaliadores <span class="mut" id="na"></span></h2>
@@ -213,7 +213,7 @@ const colsProj=L=>{const n=Math.max(1,...L.map(p=>p.orients.length));return[["id
 const isProj=t=>t==="p"||t==="x";
 const ETAPAS=["Submissão","Avaliação","Aprovado"];
 const etapaDe=s=>{const f=fold(s).trim();return/^submiss/.test(f)?0:/^(em )?avaliac/.test(f)?1:/^aprov/.test(f)?2:-1};
-const emProj=s=>{const e=etapaDe(s);return e===0||e===1};
+const emProj=s=>{const e=etapaDe(s);return e>=0};
 const selSit=s=>{const e=etapaDe(s),v=String(s??"").trim();return`<select class="sit" aria-label="Situação">${ETAPAS.map((n,i)=>`<option${i===e?" selected":""}>${n}</option>`).join("")}${e<0?(v?`<option selected>${esc(v)}</option>`:'<option value="" selected>(sem situação)</option>'):""}</select>`};
 function mudarEtapa(t,i,val){const L=t==="p"?P:O,p=L[i];if(!p||!val||val===p.situacao)return;
  p.situacao=val;editarProj(p,"situacao",val);const vaiP=emProj(val);let msg=`Situação alterada para "${val}".`;
@@ -276,7 +276,7 @@ async function lerProj(){const n=++sq.p,l=LINKS_SALVOS[modo].lp;P=[];O=[];draw("
  try{const rows=await lerCsv(l);if(n!==sq.p)return;const r=prepararProjetos(rows);if(!r.length)throw new Error("planilha de projetos vazia ou sem a coluna 'id da submissão'");
   if(semSit)throw new Error("não encontrei a coluna 'Situação' na planilha, então não dá para filtrar só os projetos em Submissão");
   P=r.filter(x=>emProj(x.situacao));O=r.filter(x=>!emProj(x.situacao));draw("p");draw("x");
-  st(`${P.length} projeto(s) em Submissão/Avaliação carregados${O.length?` e ${O.length} em outras situações (aba "Outras situações")`:""}. Confira, edite ou exclua o que precisar e depois gere a distribuição.`,"ok")}
+  st(`${P.length} projeto(s) em Submissão/Avaliação/Aprovado carregados${O.length?` e ${O.length} em outras situações (aba "Outras situações")`:""}. Confira, edite ou exclua o que precisar e depois gere a distribuição.`,"ok")}
  catch(e){if(n===sq.p)st("Erro: "+e.message,"er")}}
 async function lerAval(){const n=++sq.a,l=$("la").value.trim();if(!l)return st("Cole o link da planilha de avaliadores.","er");
  st("Carregando avaliadores...");
