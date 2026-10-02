@@ -41,10 +41,10 @@ button.lk{border:0;background:none;padding:0 4px;color:var(--ac);text-decoration
 <div class="modo"><button id="mS" class="on">SEMCITEC</button><button id="mF">FECEG</button></div>
 <div id="bF" class="hid"><label for="pa">Projetos por avaliador</label><input type="number" id="pa" min="1" max="20" value="5"></div>
 <div id="st">Carregando...</div>
-<div id="bY" class="hid"><label style="display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0 2px"><input type="checkbox" id="sy" checked style="width:auto"> Sincronizar com a planilha oficial: edições e exclusões de projetos feitas aqui também são aplicadas lá (excluídos vão para a aba "Excluídos"; edições ficam em "Histórico de edições")</label>
+<div id="bY" class="hid"><label style="display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0 2px"><input type="checkbox" id="sy" checked style="width:auto"> Sincronizar com a planilha oficial: edições e exclusões de projetos feitas aqui também são aplicadas lá (excluídos vão para a aba "Excluídos"; edições ficam em "Histórico de edições"; projetos excedentes do limite são copiados para a aba "Fila de espera")</label>
 <div class="row" style="margin:4px 0 0;align-items:center"><span id="ss" class="mut"></span><button id="bre" class="hid">Reenviar pendentes</button></div></div>
 </section>
-<div class="modo" style="margin-bottom:12px"><button id="tP" class="on">Projetos</button><button id="tX">Outras situações (0)</button><button id="tA">Avaliadores</button><button id="tD">Duplicados (0)</button></div>
+<div class="modo" style="margin-bottom:12px"><button id="tP" class="on">Projetos</button><button id="tX">Outras situações (0)</button><button id="tA">Avaliadores</button><button id="tD">Duplicados (0)</button><button id="tF">Fila de espera (0)</button></div>
 <section class="card" id="sP"><h2>Projetos <span class="mut" id="np"></span></h2>
 <p class="mut" style="margin:0">Carregados automaticamente da planilha do núcleo. Mostra projetos em Submissão, Avaliação e Aprovado (os demais ficam na aba "Outras situações"). Clique em uma célula para editar, troque a etapa na coluna Situação; ✕ exclui a linha. Com a sincronização ligada, tudo é enviado à planilha oficial.</p>
 <div class="bar"><input id="qp" placeholder="Buscar projeto..." aria-label="Buscar projeto"><button id="bl">Recarregar do Drive</button></div>
@@ -62,6 +62,10 @@ button.lk{border:0;background:none;padding:0 4px;color:var(--ac);text-decoration
 <section class="card hid" id="sD"><h2>Cadastros repetidos</h2>
 <p class="mut" style="margin:0 0 10px">Projetos com o mesmo ID ou o mesmo título, e avaliadores com o mesmo nome ou e-mail. Cada grupo tem a mesma cor; clique em uma célula para corrigir os dados (a lista se atualiza sozinha) ou exclua com ✕ o que não deve entrar na distribuição.</p>
 <div class="tw" id="gd"></div></section>
+<section class="card hid" id="sF"><h2>Fila de espera <span class="mut" id="nf"></span></h2>
+<p class="mut" style="margin:0">Projetos excedentes ao limite total (veja "Limite total de projetos" em Instituições). Eles não entram no relatório nem na distribuição. A fila é recalculada sozinha quando você muda o limite, exclui ou edita projetos, e com a sincronização ligada é copiada para a aba "Fila de espera" da planilha oficial.</p>
+<div class="bar"><input id="qf" placeholder="Buscar projeto..." aria-label="Buscar na fila de espera"></div>
+<div class="tw" id="gf"></div></section>
 <section class="card" id="sI"><h2>Instituições <span class="mut" id="nInst"></span></h2>
 <p class="mut" style="margin:0 0 10px">Resumo por instituição dos projetos e avaliadores carregados. Atualiza sozinho quando você edita ou exclui linhas. Confira antes de gerar o relatório.</p>
 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 10px"><label for="lim" style="display:inline;margin:0">Limite total de projetos</label><input type="number" id="lim" min="0" value="216" style="width:110px"><span id="resCota" class="mut"></span></div>
@@ -76,6 +80,7 @@ const LINKS_SALVOS={SEMCITEC:{lp:"https://docs.google.com/spreadsheets/d/1ISTv8U
 // Cole aqui a URL (/exec) do Apps Script (arquivo Code.gs) e o mesmo TOKEN definido nele. Vazio = sincronização desligada.
 const SYNC={SEMCITEC:{url:"https://script.google.com/macros/s/AKfycbyPTM0pjvoZyYHS0Rrp8aOB3-2ZLqur85wfBPslUvFjQXW4Mjw0g-fLdZCuSptxxwASdQ/exec",token:"Alice01@"},FECEG:{url:"https://script.google.com/macros/s/AKfycbwQrdTcmuw3Avv1IRVdNgc_LzIa4zQ5JNMglyQmK43Zdjn7Q7H7-4YqvlcuwKpSQRSa/exec",token:"Alice01@"}};
 const CFG={SEMCITEC:{porAval:10,salas:["Sala 1","Sala 2","Sala 3","Sala 4"]},FECEG:{dataOnline:"13/10",porTurno:50}};
+const LIMITES={SEMCITEC:12,FECEG:216},ABA_FILA="Fila de espera";
 const DIAS=["Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado","Domingo"];
 const EXTRAS=["verificação","telefone (autor 1)","telefone (autor 2)","telefone (autor 3)","e-mail orientadores(as)"];
 const INST={"UNIFESP":["unifesp","universidade federal de sao paulo"],"USP":["usp","universidade de sao paulo"],"UFABC":["ufabc","universidade federal do abc"],"UFRJ":["ufrj"],"UFPE":["ufpe"],"UFRN":["universidade federal do rio grande do norte"],"UNESP":["unesp"],
@@ -191,6 +196,7 @@ function feceg(P,A,porAval){const{porTurno}=CFG.FECEG,w=wb(),avisos=[];A.forEach
  return{w:w.o,avisos,stats:{"Projetos":P.length,"Avaliadores":A.length,"Com avaliação online":online.length,"Com turno presencial":aloc.size}}}
 
 let P=[],O=[],A=[],cur=null;const sq={p:0,a:0};
+let FILA=[],PROJ_OK=false,filaT=null;const filaSig={};
 let PEND=[],envP=null;
 const syncOn=()=>!!(SYNC[modo]&&SYNC[modo].url);
 const ss=(m,c="")=>{$("ss").textContent=m;$("ss").style.color=c==="er"?"var(--er)":c==="ok"?"var(--ok)":"";$("bre").className=PEND.length?"":"hid"};
@@ -258,6 +264,25 @@ function cotas(ns,lim){const tot=ns.reduce((a,b)=>a+b,0);if(tot<=lim)return{teto
  let lo=0,hi=Math.max(...ns);while(lo<hi){const mid=Math.ceil((lo+hi)/2);if(ns.reduce((a,n)=>a+Math.min(n,mid),0)<=lim)lo=mid;else hi=mid-1}
  const v=ns.map(n=>Math.min(n,lo));let sobra=lim-v.reduce((a,b)=>a+b,0);
  ns.map((n,i)=>i).filter(i=>ns[i]>lo).sort((a,b)=>ns[b]-ns[a]).forEach(i=>{if(sobra>0){v[i]++;sobra--}});return{teto:lo,vagas:v,cabe:false}}
+const limAtual=()=>{const v=parseInt($("lim").value);return isNaN(v)?LIMITES[modo]:Math.max(0,v)};
+// Seleção: aplica o limite por instituição (cotas) e separa, na ordem da planilha, os projetos aceitos (sel) dos excedentes (fila).
+function calcSel(){const n=new Map();P.forEach(p=>n.set(p.inst,(n.get(p.inst)||0)+1));
+ const ks=[...n.keys()].sort((a,b)=>n.get(b)-n.get(a)||a.localeCompare(b)),q=cotas(ks.map(k=>n.get(k)),limAtual()),vg=new Map(ks.map((k,i)=>[k,q.vagas[i]])),usados=new Map(),sel=[],fila=[];
+ P.forEach(p=>{const u=usados.get(p.inst)||0;if(u<vg.get(p.inst)){usados.set(p.inst,u+1);sel.push(p)}else fila.push(p)});return{sel,fila,vg,q}}
+function drawFila(){const{vg}=calcSel(),q=fold($("qf").value.trim()),mt=p=>`Limite de ${vg.get(p.inst)||0} projeto(s) para ${p.inst} atingido`,
+ L=FILA.map((p,i)=>[p,i+1]).filter(([p,k])=>!q||fold([k,p.id,p.titulo,p.situacao,p.cat,p.autores,p.inst].join(" ")).includes(q));
+ $("nf").textContent=`(${L.length===FILA.length?FILA.length:L.length+" de "+FILA.length})`;$("tF").textContent=`Fila de espera (${FILA.length})`;
+ $("gf").innerHTML=FILA.length?"<table><tr>"+["Posição","ID","Título","Situação","Categoria","Autores","Instituição","Motivo"].map(h=>`<th>${h}</th>`).join("")+"</tr>"+L.map(([p,k])=>`<tr><td>${k}</td><td>${esc(p.id)}</td><td>${esc(p.titulo)}</td><td>${esc(p.situacao)}</td><td>${esc(p.cat)}</td><td>${esc(p.autores)}</td><td>${esc(p.inst)}</td><td>${esc(mt(p))}</td></tr>`).join("")+"</table>":'<p style="padding:10px;color:var(--ok)">Nenhum projeto excedente: todos cabem no limite.</p>'}
+const sigFila=()=>modo+"|"+limAtual()+"|"+FILA.map(p=>[p.id,p.titulo,p.situacao,p.inst].join("~")).join("¦");
+function agendarFila(){clearTimeout(filaT);if(!PROJ_OK||!syncOn()||!$("sy").checked||filaSig[modo]===sigFila())return;const m=modo;filaT=setTimeout(()=>enviarFila(m),2000)}
+async function enviarFila(m){if(m!==modo||!PROJ_OK)return;await envP;if(m!==modo||!PROJ_OK)return;
+ const c=SYNC[m],sig=sigFila(),lim=limAtual(),{vg}=calcSel(),lista=FILA.map((p,i)=>({posicao:i+1,id:p.id,titulo:p.titulo,autor1:String(p.autores||"").split("; ")[0]||"",inst:p.inst,cat:p.cat,situacao:p.situacao,motivo:`Limite de ${vg.get(p.inst)||0} projeto(s) para ${p.inst} atingido`}));
+ try{ss("Atualizando a fila de espera na planilha oficial...");
+  const r=await fetch(c.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({token:c.token,itens:[],fila:{aba:ABA_FILA,limite:lim,lista}})});
+  const j=await r.json();if(!j.ok)throw new Error(j.erro||"resposta inválida");
+  if(!j.fila)throw new Error("o Apps Script ainda não tem o tratamento da fila de espera (adicione o trecho de Code_fila.gs e reimplante)");
+  filaSig[m]=sig;ss(`Fila de espera atualizada na planilha oficial (${lista.length} projeto(s)).`,"ok")}
+ catch(e){ss(`⚠ Fila de espera NÃO enviada à planilha oficial: ${e.message}.`,"er")}}
 function detInst(){const el=$("dInst");if(!SEL){el.innerHTML="";return}
  const l=P.filter(p=>p.inst===SEL.i&&recDe(p.situacao)===SEL.r);if(!l.length){SEL=null;el.innerHTML="";return}
  el.innerHTML=`<div class="card" style="margin:12px 0 0;background:#f7faff"><div class="row" style="margin:0 0 8px;align-items:center"><strong>${esc(SEL.i)} — ${esc(SEL.r)} (${l.length})</strong><button id="fDet" style="margin-left:auto">Fechar</button></div><div class="tw"><table><tr><th>ID</th><th>Título</th><th>Categoria</th><th>Autores</th><th>Situação</th></tr>${l.map(p=>`<tr><td>${esc(p.id)}</td><td>${esc(p.titulo)}</td><td>${esc(p.cat)}</td><td>${esc(p.autores)}</td><td>${esc(p.situacao)}</td></tr>`).join("")}</table></div></div>`}
@@ -265,13 +290,13 @@ function refInst(){const m=new Map(),g=i=>{if(!m.has(i))m.set(i,{p:0,a:0,r:{}});
  P.forEach(p=>{const v=g(p.inst),r=recDe(p.situacao);v.p++;v.r[r]=(v.r[r]||0)+1;if(!cols.includes(r))cols.push(r)});A.forEach(a=>g(a.inst).a++);
  if(modo!=="FECEG")cols.sort((a,b)=>{const x=etapaDe(a),y=etapaDe(b);return(x<0?9:x)-(y<0?9:y)});
  const l=[...m.entries()].sort((x,y)=>y[1].p-x[1].p||y[1].a-x[1].a||x[0].localeCompare(y[0]));
- const lv=parseInt($("lim").value),lim=isNaN(lv)?216:Math.max(0,lv),q=cotas(l.map(x=>x[1].p),lim),acc=q.vagas.reduce((a,b)=>a+b,0);
+ const lim=limAtual(),{sel,fila,vg,q}=calcSel(),acc=sel.length;
  $("resCota").textContent=P.length?(q.cabe?`Todos os ${P.length} projetos cabem no limite.`:`Teto por instituição: ${q.teto} · aceitos ${acc} de ${P.length} projetos.`):"";
  $("nInst").textContent=`(${l.length})`;
- $("gInst").innerHTML=l.length?"<table><tr><th>Instituição</th><th>Projetos</th><th>Avaliadores</th>"+cols.map(c=>`<th>${esc(c)}</th>`).join("")+`<th>Vagas (limite ${lim})</th><th>Excedente</th></tr>`+l.map(([i,v],k)=>{const ex=v.p-q.vagas[k];return`<tr><td>${esc(i)}</td><td>${v.p}</td><td>${v.a}</td>${cols.map(c=>{const n=v.r[c]||0;return n?`<td><button class="lk" data-ins="${esc(i)}" data-rc="${esc(c)}" title="Ver os projetos">${n}</button></td>`:"<td>0</td>"}).join("")}<td><b>${q.vagas[k]}</b></td><td${ex?' style="color:var(--er)"':""}>${ex}</td></tr>`}).join("")+`<tr style="font-weight:700;background:#f2f6fc"><td>Total</td><td>${P.length}</td><td>${A.length}</td>${cols.map(c=>`<td>${l.reduce((a,[,v])=>a+(v.r[c]||0),0)}</td>`).join("")}<td>${acc}</td><td>${P.length-acc}</td></tr></table>`:'<p style="padding:10px;color:var(--mut)">Nenhum dado carregado.</p>';detInst()}
+ $("gInst").innerHTML=l.length?"<table><tr><th>Instituição</th><th>Projetos</th><th>Avaliadores</th>"+cols.map(c=>`<th>${esc(c)}</th>`).join("")+`<th>Vagas (limite ${lim})</th><th>Excedente</th></tr>`+l.map(([i,v],k)=>{const ex=v.p-(vg.get(i)||0);return`<tr><td>${esc(i)}</td><td>${v.p}</td><td>${v.a}</td>${cols.map(c=>{const n=v.r[c]||0;return n?`<td><button class="lk" data-ins="${esc(i)}" data-rc="${esc(c)}" title="Ver os projetos">${n}</button></td>`:"<td>0</td>"}).join("")}<td><b>${vg.get(i)||0}</b></td><td${ex?' style="color:var(--er)"':""}>${ex}</td></tr>`}).join("")+`<tr style="font-weight:700;background:#f2f6fc"><td>Total</td><td>${P.length}</td><td>${A.length}</td>${cols.map(c=>`<td>${l.reduce((a,[,v])=>a+(v.r[c]||0),0)}</td>`).join("")}<td>${acc}</td><td>${P.length-acc}</td></tr></table>`:'<p style="padding:10px;color:var(--mut)">Nenhum dado carregado.</p>';detInst();FILA=fila;drawFila();agendarFila()}
 function aplicarDup(){const fs=Object.entries(F.d).filter(e=>e[1].trim()).map(([j,f])=>[+j,fold(f.trim())]);
  $("gd").querySelectorAll("tr[data-d]").forEach(tr=>{tr.hidden=!fs.every(([j,f])=>fold(tr.children[j].dataset.v??tr.children[j].textContent).includes(f))})}
-function aba(x){[["P","sP"],["X","sX"],["A","sA"],["D","sD"]].forEach(([k,id])=>{$("t"+k).classList.toggle("on",k===x);$(id).className=k===x?"card":"card hid"})}
+function aba(x){[["P","sP"],["X","sX"],["A","sA"],["D","sD"],["F","sF"]].forEach(([k,id])=>{$("t"+k).classList.toggle("on",k===x);$(id).className=k===x?"card":"card hid"})}
 
 function tab(sh,n,btn){const same=cur&&cur.sh===sh&&cur.n===n,fv=same?cur.fv:{};cur={sh,n,btn,fv};const rows=sh[n],MAX=300,cs=[...new Set(rows.flatMap(r=>Object.keys(r)))],v=$("tv");
  v.innerHTML="<table><thead><tr>"+cs.map((c,j)=>`<th>${esc(c)}<input class="cf" data-j="${j}" value="${esc(fv[j]||"")}" placeholder="filtrar" aria-label="Filtrar ${esc(c)}"></th>`).join("")+'<th></th></tr></thead><tbody></tbody></table><p class="mut" style="padding:0 9px"></p>';
@@ -297,12 +322,12 @@ async function addExc(l,n){try{const m=String(l).match(/\/spreadsheets\/d\/([\w-
   if(!("título" in r)&&"titulo" in r)r["título"]=r["titulo"];if(!("nome completo (autor 1)" in r)&&"autor1" in r)r["nome completo (autor 1)"]=r["autor1"];return r}));semSit=sv;
  const ja=new Set([...P,...O].map(x=>x.id));
  lista.forEach(p=>{if(ja.has(p.id))return;ja.add(p.id);p.situacao="Rejeitado";p.o.situacao="Rejeitado";p.exc=true;O.push(p)})}catch(e){}}
-async function lerProj(){const n=++sq.p,l=LINKS_SALVOS[modo].lp;P=[];O=[];draw("p");draw("x");if(!l)return st("Link dos projetos deste núcleo não configurado.","er");
+async function lerProj(){const n=++sq.p,l=LINKS_SALVOS[modo].lp;PROJ_OK=false;P=[];O=[];draw("p");draw("x");if(!l)return st("Link dos projetos deste núcleo não configurado.","er");
  st("Carregando projetos de "+modo+"...");
  try{const rows=await lerCsv(l);if(n!==sq.p)return;const r=prepararProjetos(rows);if(!r.length)throw new Error("planilha de projetos vazia ou sem a coluna 'id da submissão'");
   if(semSit)throw new Error("não encontrei a coluna 'Situação' na planilha, então não dá para filtrar só os projetos em Submissão");
-  P=r.filter(x=>emProj(x.situacao));O=r.filter(x=>!emProj(x.situacao));await addExc(l,n);if(n!==sq.p)return;draw("p");draw("x");
-  st(`${P.length} projeto(s) em Submissão/Avaliação/Aprovado carregados${O.length?` e ${O.length} em outras situações (aba "Outras situações")`:""}. Confira, edite ou exclua o que precisar e depois gere a distribuição.`,"ok")}
+  P=r.filter(x=>emProj(x.situacao));O=r.filter(x=>!emProj(x.situacao));await addExc(l,n);if(n!==sq.p)return;draw("p");draw("x");PROJ_OK=true;refInst();
+  st(`${P.length} projeto(s) em Submissão/Avaliação/Aprovado carregados${O.length?` e ${O.length} em outras situações (aba "Outras situações")`:""}. Confira, edite ou exclua o que precisar e depois gere a distribuição.${FILA.length?` ${FILA.length} excedente(s) do limite de ${limAtual()} foram para a aba "Fila de espera".`:""}`,"ok")}
  catch(e){if(n===sq.p)st("Erro: "+e.message,"er")}}
 async function lerAval(){const n=++sq.a,l=$("la").value.trim();if(!l)return st("Cole o link da planilha de avaliadores.","er");
  st("Carregando avaliadores...");
@@ -310,15 +335,16 @@ async function lerAval(){const n=++sq.a,l=$("la").value.trim();if(!l)return st("
  catch(e){if(n===sq.a)st("Erro: "+e.message,"er")}}
 async function gerar(){try{if(!P.length)return st("Nenhum projeto carregado.","er");
  if(NG&&dupVisto!==NG){dupVisto=NG;refDup();aba("D");$("sD").scrollIntoView({behavior:"smooth",block:"start"});return st(`Há ${NG} grupo(s) de cadastros repetidos. Revise na aba Duplicados (exclua com ✕ o que não deve entrar) e clique em "Gerar assim mesmo" para continuar.`,"er")}
+ const{sel,fila}=calcSel();if(!sel.length)return st("Nenhum projeto dentro do limite de "+limAtual()+" para gerar.","er");
  const lr=$("lr").value.trim();st("Gerando...");const rec=modo==="SEMCITEC"&&lr?mapaRec(await lerCsv(lr)):{};
- res={"Relatório de Inscrições SDC":relatorio(P,rec)};let d=null;
- if(A.length){d=modo==="SEMCITEC"?semcitec(P,A):feceg(P,A,+$("pa").value||5);res["Distribuição "+modo]=d.w}
- render(d);st(A.length?"Pronto. Edite as abas se precisar e baixe os arquivos.":"Relatório gerado. Sem avaliadores, a distribuição foi ignorada.","ok")}
+ res={"Relatório de Inscrições SDC":relatorio(sel,rec)};let d=null;
+ if(A.length){d=modo==="SEMCITEC"?semcitec(sel,A):feceg(sel,A,+$("pa").value||5);if(fila.length)d.avisos.unshift(`${fila.length} projeto(s) excedente(s) do limite de ${limAtual()} ficaram na fila de espera e não entraram nos arquivos.`);res["Distribuição "+modo]=d.w}
+ render(d);st((A.length?"Pronto. Edite as abas se precisar e baixe os arquivos.":"Relatório gerado. Sem avaliadores, a distribuição foi ignorada.")+(fila.length?` ${fila.length} excedente(s) ficaram de fora (fila de espera).`:""),"ok")}
  catch(e){st("Erro: "+e.message,"er")}}
 function carregar(){const l={...LINKS_SALVOS[modo]};try{Object.assign(l,JSON.parse(localStorage.getItem("sdcv_"+modo))||{})}catch(e){}$("la").value=l.la||"";$("lr").value=l.lr||""}
-function setModo(m){modo=m;$("mS").className=m==="SEMCITEC"?"on":"";$("mF").className=m==="FECEG"?"on":"";$("bR").className=m==="SEMCITEC"?"":"hid";$("bF").className=m==="FECEG"?"":"hid";
+function setModo(m){modo=m;PROJ_OK=false;clearTimeout(filaT);P=[];O=[];FILA=[];$("lim").value=LIMITES[m];$("qf").value="";$("mS").className=m==="SEMCITEC"?"on":"";$("mF").className=m==="FECEG"?"on":"";$("bR").className=m==="SEMCITEC"?"":"hid";$("bF").className=m==="FECEG"?"":"hid";
  $("out").innerHTML="";res={};A=[];$("bY").className=syncOn()?"":"hid";ss(syncOn()?"Sincronização com a planilha oficial ativa.":"","ok");$("qp").value=$("qa").value=$("qx").value="";F.p={};F.x={};F.a={};F.d={};dupVisto=0;aba("P");draw("a");carregar();lerProj();if($("la").value.trim())lerAval()}
-$("bre").onclick=enviar;$("mS").onclick=()=>setModo("SEMCITEC");$("mF").onclick=()=>setModo("FECEG");$("bg").onclick=gerar;$("bl").onclick=lerProj;$("bca").onclick=lerAval;
+$("bre").onclick=()=>{enviar();agendarFila()};$("tF").onclick=()=>aba("F");$("qf").oninput=drawFila;$("sy").onchange=agendarFila;$("mS").onclick=()=>setModo("SEMCITEC");$("mF").onclick=()=>setModo("FECEG");$("bg").onclick=gerar;$("bl").onclick=lerProj;$("bca").onclick=lerAval;
 $("bad").onclick=()=>{A.push({nome:"Novo avaliador",inst:"Outros/Sem Instituição",disp:"",email:""});$("qa").value="";draw("a");$("ga").scrollTop=1e9};
 $("qp").oninput=()=>draw("p");$("qa").oninput=()=>draw("a");$("tP").onclick=()=>aba("P");$("tX").onclick=()=>aba("X");$("qx").oninput=()=>draw("x");$("tA").onclick=()=>aba("A");$("tD").onclick=()=>aba("D");
 $("gd").onclick=e=>{const b=e.target.closest("[data-del]");if(!b)return;const x=DUP[+b.closest("tr").dataset.d],a=DS[x.t].rows(),i=a.indexOf(x.r);if(i>=0){a.splice(i,1);if(x.t==="p")excluir(x.r)}draw("p");draw("a")};
