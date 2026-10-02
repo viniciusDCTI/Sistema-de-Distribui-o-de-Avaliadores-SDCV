@@ -91,13 +91,18 @@ const INST={"UNIFESP":["unifesp","universidade federal de sao paulo"],"USP":["us
 "FATEC Guarulhos":["fatec","fatec guarulhos","fatec gru","faculdade de tecnologia de guarulhos","fatec zona leste"],"FATEC São Paulo":["fatec sao paulo","fatec sp"],"ETEC Guarulhos":["etec guarulhos","etec de guarulhos"],
 "ENIAC":["eniac"],"UNG":["ung","universidade guarulhos","universidade de guarulhos","npdn"],"UNICID":["unicid"],"UNINOVE":["uninove"],"UNISA":["unisa"],"UNIANCHIETA":["unianchieta","universidade anchieta"],"UNICASTELO":["unicastelo"],
 "CRUZEIRO DO SUL":["cruzeiro do sul"],"ANHANGUERA":["anhanguera"],"FMU":["fmu"],"FIAP":["fiap"],"ESPM":["espm"],"INSPER":["insper"],"PUC-SP":["puc sp","puc sao paulo"],"UNIVESP":["univesp"],"MACKENZIE":["mackenzie"],
-"CENTRO PAULA SOUZA":["centro paula souza"],"CARLOS DRUMMOND":["carlos drummond"],"UNIFAVENI":["unifaveni","faveni"],"IFSP":["ifsp","instituto federal","intituto federal"],
+"CENTRO PAULA SOUZA":["centro paula souza"],"CARLOS DRUMMOND":["carlos drummond"],"UNIFAVENI":["unifaveni","faveni"],"IFSP":["ifsp","instituto federal","intituto federal","institudo federal"],
 "E.E. Valderice T.M.C Marchini":["valderice"],"E.E. Antônio Grotkowsky":["grotkowsky"],"E.E. Maria Helena Barbosa Martins":["maria helena barbosa martins"],"E.E. Lydia Kitz Moreira":["lydia kitz"],
 "E.E. Professor Celso Piva":["celso piva"],"E.E. Maestro João Carlos Martins":["maestro joao carlos martins"],"E.E. Plínio Paulo Braga":["plinio paulo braga"],"E.E. Parque Jurema III":["parque jurema"],
 "E.E. Dr. José Leme Lopes":["leme lopes"],"E.E. Professor Mário Nakata":["mario nakata"],"E.E. Valdivino de Castro Pereira":["valdivino"],"E.E. Professor Alberto Bacan":["alberto bacan","alaberto bacan"],
 "E.E. Professor Hélio Polesel":["helio polesel"],"E.E. Guilhermino Rodrigues de Lima":["guilhermino"],"EEM Doutor César Cals":["cesar cals"],"E.E. Parque Primavera":["parque primavera"],
 "E.E. Professora Alice Chuery":["alice chuery"],"E.E. Professora Maria Angélica Soave":["angelica soave"],"Colégio Santa Rita":["santa rita"],"Colégio Madre Alix":["madre alix","madrealix"],
-"Colégio Universitário Alphaville":["universitario alphaville"],"Colégio Nahim Ahmad":["nahim ahmad"],"Prefeitura de Guarulhos":["prefeitura de guarulhos","prefeitura municipal de guarulhos"]};
+"Colégio Universitário Alphaville":["universitario alphaville","colegio universitario"],"Colégio Nahim Ahmad":["nahim ahmad","nahum ahmad"],"Prefeitura de Guarulhos":["prefeitura de guarulhos","prefeitura municipal de guarulhos"],
+"E.E. Conselheiro Crispiniano":["conselheiro crispiniano","conselhiro crispiniano","crispiniano"],"E.E. Marcos Holanda de Almeida":["marcos holanda","marcos horlanda"],
+"E.E. Professora Maria Aparecida Félix Porto":["maria aparecida felix porto"],"E.E. Maria Aparecida Rodrigues":["maria aparecida rodrigues"],"E.E. Professora Hilda Prattes Gallo":["hilda prattes gallo","hilda prates gallo"],
+"E.E. Professora Idalina Ladeira Ferreira":["idalina ladeira"],"E.E. Wanda Mascagni de Sá":["wanda mascagni"],"EEMTI Antônia Vieira Lima":["antonia vieira lima"],"E.E. Maria Leoni":["maria leoni"],"E.E. Tomie Ohtake":["tomie ohtake"],
+"ETEC Conselheiro Antônio Prado":["conselheiro antonio prado"],"Centro Municipal de Ensino Profissionalizante Osmar Passarelli Silveira":["osmar passarelli"],"Diretoria de Ensino Regional Sul de Guarulhos":["diretoria de ensino"],
+"FECAP":["fecap","alvares penteado"],"SENAC Guarulhos":["senac"]};
 const KW=Object.entries(INST).flatMap(([i,ks])=>ks.map(k=>[new RegExp("(^|[^a-z0-9])"+k.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(?![a-z0-9])"),i,k.length])).sort((a,b)=>b[2]-a[2]);
 
 const $=id=>document.getElementById(id);
