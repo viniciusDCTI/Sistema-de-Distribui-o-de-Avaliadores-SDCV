@@ -30,6 +30,7 @@ td[contenteditable]:hover{background:#f7faff}td[contenteditable]:focus{outline:2
 button.x{padding:1px 8px;border-color:var(--er);color:var(--er)}.tw{max-height:420px}.tw td:first-child{color:var(--mut)}
 .cf{display:block;width:100%;min-width:90px;margin-top:4px;padding:3px 5px;font:inherit;font-size:.8rem;font-weight:400}
 .g1 td{background:#fff7e0}
+select.sit{font:inherit;font-size:.85rem;padding:3px 4px;border:1px solid var(--line);border-radius:6px;background:transparent;color:inherit;cursor:pointer}select.sit option{color:#000;background:#fff}
 #tD.al:not(.on){border-color:var(--er);color:var(--er)}
 </style></head>
 <body><main>
@@ -42,11 +43,15 @@ button.x{padding:1px 8px;border-color:var(--er);color:var(--er)}.tw{max-height:4
 <div id="bY" class="hid"><label style="display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0 2px"><input type="checkbox" id="sy" checked style="width:auto"> Sincronizar com a planilha oficial: edições e exclusões de projetos feitas aqui também são aplicadas lá (excluídos vão para a aba "Excluídos"; edições ficam em "Histórico de edições")</label>
 <div class="row" style="margin:4px 0 0;align-items:center"><span id="ss" class="mut"></span><button id="bre" class="hid">Reenviar pendentes</button></div></div>
 </section>
-<div class="modo" style="margin-bottom:12px"><button id="tP" class="on">Projetos</button><button id="tA">Avaliadores</button><button id="tD">Duplicados (0)</button></div>
+<div class="modo" style="margin-bottom:12px"><button id="tP" class="on">Projetos</button><button id="tX">Outras situações (0)</button><button id="tA">Avaliadores</button><button id="tD">Duplicados (0)</button></div>
 <section class="card" id="sP"><h2>Projetos <span class="mut" id="np"></span></h2>
-<p class="mut" style="margin:0">Carregados automaticamente da planilha do núcleo. Clique em uma célula para editar; ✕ exclui a linha. Com a sincronização ligada, tudo é enviado à planilha oficial.</p>
+<p class="mut" style="margin:0">Carregados automaticamente da planilha do núcleo. Mostra projetos em Submissão e em Avaliação (os demais ficam na aba "Outras situações"). Clique em uma célula para editar, troque a etapa na coluna Situação; ✕ exclui a linha. Com a sincronização ligada, tudo é enviado à planilha oficial.</p>
 <div class="bar"><input id="qp" placeholder="Buscar projeto..." aria-label="Buscar projeto"><button id="bl">Recarregar do Drive</button></div>
 <div class="tw" id="gp"></div></section>
+<section class="card hid" id="sX"><h2>Outras situações <span class="mut" id="nx"></span></h2>
+<p class="mut" style="margin:0">Projetos da planilha que não estão em Submissão nem em Avaliação (Aprovado, Rejeitado, Agendado...). Eles não entram na distribuição. Mude a situação para trazê-los de volta para a aba Projetos.</p>
+<div class="bar"><input id="qx" placeholder="Buscar projeto..." aria-label="Buscar projeto"></div>
+<div class="tw" id="gx"></div></section>
 <section class="card hid" id="sA"><h2>Avaliadores <span class="mut" id="na"></span></h2>
 <label for="la">Link da planilha de avaliadores</label><input id="la" placeholder="Cole o link do Google Sheets (compartilhado como 'qualquer pessoa com o link')">
 <div id="bR"><label for="lr">Link do relatório de avaliação (recomendações) - opcional</label><input id="lr"></div>
@@ -67,7 +72,7 @@ button.x{padding:1px 8px;border-color:var(--er);color:var(--er)}.tw{max-height:4
 const LINKS_SALVOS={SEMCITEC:{lp:"https://docs.google.com/spreadsheets/d/1ISTv8UmUl-6Qhzf6zfyHi6hGw1UBgzdt4kcRUOHNpTQ/edit?usp=drive_link",la:"",lr:""},FECEG:{lp:"https://docs.google.com/spreadsheets/d/1Zwdz0YqeqzLQ_t-KqQL_X6UKjQt-5A-Voq7ooB4JerE/edit?usp=sharing",la:"",lr:""}};
 // ===== SINCRONIZAÇÃO DAS EXCLUSÕES COM A PLANILHA OFICIAL =====
 // Cole aqui a URL (/exec) do Apps Script (arquivo Code.gs) e o mesmo TOKEN definido nele. Vazio = sincronização desligada.
-const SYNC={SEMCITEC:{url:"https://script.google.com/macros/s/AKfycbyPTM0pjvoZyYHS0Rrp8aOB3-2ZLqur85wfBPslUvFjQXW4Mjw0g-fLdZCuSptxxwASdQ/exec",token:"Alice01@"},FECEG:{url:"https://script.google.com/macros/s/AKfycbwQrdTcmuw3Avv1IRVdNgc_LzIa4zQ5JNMglyQmK43Zdjn7Q7H7-4YqvlcuwKpSQRSa/exec",token:"Alice01@"}};
+const SYNC={SEMCITEC:{url:"https://script.google.com/macros/s/AKfycby6_StFXxjO4XflRf_gniPr4iY14kObBvqNkKTsr-030ufjalHmuxUtRjziX-UrejeeyA/exec",token:"Alice01@"},FECEG:{url:"",token:"Alice01@"}};
 const CFG={SEMCITEC:{porAval:10,salas:["Sala 1","Sala 2","Sala 3","Sala 4"]},FECEG:{dataOnline:"13/10",porTurno:50}};
 const DIAS=["Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado","Domingo"];
 const EXTRAS=["verificação","telefone (autor 1)","telefone (autor 2)","telefone (autor 3)","e-mail orientadores(as)"];
@@ -183,7 +188,7 @@ function feceg(P,A,porAval){const{porTurno}=CFG.FECEG,w=wb(),avisos=[];A.forEach
  if(nd.length)avisos.push(`${nd.length} projeto(s) sem turno presencial.`);
  return{w:w.o,avisos,stats:{"Projetos":P.length,"Avaliadores":A.length,"Com avaliação online":online.length,"Com turno presencial":aloc.size}}}
 
-let P=[],A=[],cur=null;const sq={p:0,a:0};
+let P=[],O=[],A=[],cur=null;const sq={p:0,a:0};
 let PEND=[],envP=null;
 const syncOn=()=>!!(SYNC[modo]&&SYNC[modo].url);
 const ss=(m,c="")=>{$("ss").textContent=m;$("ss").style.color=c==="er"?"var(--er)":c==="ok"?"var(--ok)":"";$("bre").className=PEND.length?"":"hid"};
@@ -203,24 +208,36 @@ function enviar(){return envP||(envP=(async()=>{try{
   finally{envP=null}})())}
 addEventListener("beforeunload",e=>{if(PEND.length){e.preventDefault();e.returnValue=""}});
 const tipoDe=c=>{c=norm(c);return c.includes("relato")?"Relato":(c.includes("pesquisa")||c.includes("academica"))?"Pesquisa":"Outros"};
-const V=(d,r,k)=>String(d.val?d.val(r,k):r[k]??""),isO=k=>/^o\d+$/.test(k),F={p:{},a:{},d:{}},DUP=[];let NG=0,dupVisto=0;
+const V=(d,r,k)=>String(d.val?d.val(r,k):r[k]??""),isO=k=>/^o\d+$/.test(k),F={p:{},x:{},a:{},d:{}},DUP=[];let NG=0,dupVisto=0;
+const colsProj=L=>{const n=Math.max(1,...L.map(p=>p.orients.length));return[["id","ID"],["titulo","Título"],["cat","Categoria"],["autores","Autores"],["inst","Instituição"],["eixo","Eixo"],...Array.from({length:n},(_,i)=>["o"+i,"Orientador "+(i+1)]),["situacao","Situação"]]};
+const isProj=t=>t==="p"||t==="x";
+const ETAPAS=["Submissão","Avaliação","Aprovado"];
+const etapaDe=s=>{const f=fold(s).trim();return/^submiss/.test(f)?0:/^(em )?avaliac/.test(f)?1:/^aprov/.test(f)?2:-1};
+const emProj=s=>{const e=etapaDe(s);return e===0||e===1};
+const selSit=s=>{const e=etapaDe(s),v=String(s??"").trim();return`<select class="sit" aria-label="Situação">${ETAPAS.map((n,i)=>`<option${i===e?" selected":""}>${n}</option>`).join("")}${e<0?(v?`<option selected>${esc(v)}</option>`:'<option value="" selected>(sem situação)</option>'):""}</select>`};
+function mudarEtapa(t,i,val){const L=t==="p"?P:O,p=L[i];if(!p||!val||val===p.situacao)return;
+ p.situacao=val;editarProj(p,"situacao",val);const vaiP=emProj(val);let msg=`Situação alterada para "${val}".`;
+ if(vaiP&&t==="x"){L.splice(i,1);P.push(p);msg+=' Projeto movido para a aba "Projetos".'}else if(!vaiP&&t==="p"){L.splice(i,1);O.push(p);msg+=' Projeto movido para a aba "Outras situações" (não entra na distribuição).'}
+ draw("p");draw("x");st(msg,"ok")}
 const DS={
- p:{rows:()=>P,get cols(){const n=Math.max(1,...P.map(p=>p.orients.length));return[["id","ID"],["titulo","Título"],["cat","Categoria"],["autores","Autores"],["inst","Instituição"],["eixo","Eixo"],...Array.from({length:n},(_,i)=>["o"+i,"Orientador "+(i+1)]),["situacao","Situação"]]},
+ p:{rows:()=>P,get cols(){return colsProj(P)},
   val:(r,k)=>isO(k)?r.orients[+k.slice(1)]||"":r[k],
   set(r,k,v){if(isO(k)){const i=+k.slice(1);while(r.orients.length<=i)r.orients.push("");const ps=splitOrient(v);if(ps.length){r.orients.splice(i,1,...ps);if(ps.length>1)r.orients=uniq(r.orients)}else r.orients[i]=v;r.orient=r.orients.filter(Boolean).join("; ");return}
    if(k==="inst"){v=mapInst(v);r.insts.delete(r.inst);r.insts.add(v)}if(k==="cat")r.tipo=tipoDe(v);r[k]=v}},
  a:{rows:()=>A,cols:[["nome","Nome"],["inst","Instituição"],["disp","Disponibilidade"],["email","E-mail"]],
   set(r,k,v){if(k==="nome")v=titleCase(v);if(k==="inst")v=mapInst(v);r[k]=v}}};
+DS.x={rows:()=>O,get cols(){return colsProj(O)},val:DS.p.val,set:DS.p.set};
 function draw(t){const d=DS[t],rows=d.rows(),cols=d.cols;
- $("g"+t).innerHTML=rows.length?`<table><tr><th>#</th>${cols.map(([k,n])=>`<th>${n}<input class="cf" data-k="${k}" value="${esc(F[t][k]||"")}" placeholder="filtrar" aria-label="Filtrar ${n}"></th>`).join("")}<th></th></tr>`+rows.map((r,i)=>`<tr data-i="${i}"><td>${i+1}</td>${cols.map(([k])=>`<td contenteditable="true" data-k="${k}">${esc(V(d,r,k))}</td>`).join("")}<td><button class="x" data-del="1" title="Excluir linha">✕</button></td></tr>`).join("")+"</table>":'<p style="padding:10px;color:var(--mut)">Nenhum dado carregado.</p>';
- aplicar(t);refDup()}
+ $("g"+t).innerHTML=rows.length?`<table><tr><th>#</th>${cols.map(([k,n])=>`<th>${n}<input class="cf" data-k="${k}" value="${esc(F[t][k]||"")}" placeholder="filtrar" aria-label="Filtrar ${n}"></th>`).join("")}<th></th></tr>`+rows.map((r,i)=>`<tr data-i="${i}"><td>${i+1}</td>${cols.map(([k])=>k==="situacao"&&isProj(t)?`<td>${selSit(r.situacao)}</td>`:`<td contenteditable="true" data-k="${k}">${esc(V(d,r,k))}</td>`).join("")}<td><button class="x" data-del="1" title="Excluir linha">✕</button></td></tr>`).join("")+"</table>":'<p style="padding:10px;color:var(--mut)">Nenhum dado carregado.</p>';
+ aplicar(t);if(t==="x")$("tX").textContent=`Outras situações (${O.length})`;refDup()}
 function aplicar(t){const d=DS[t],rows=d.rows(),q=fold($("q"+t).value.trim()),fs=Object.entries(F[t]).filter(e=>e[1].trim()).map(([k,f])=>[k,fold(f.trim())]);let n=0;
  $("g"+t).querySelectorAll("tr[data-i]").forEach(tr=>{const r=rows[+tr.dataset.i],ok=(!q||fold(d.cols.map(([k])=>V(d,r,k)).join(" ")).includes(q))&&fs.every(([k,f])=>fold(V(d,r,k)).includes(f));tr.hidden=!ok;if(ok)n++});
  $("n"+t).textContent=`(${n===rows.length?rows.length:n+" de "+rows.length})`}
 function bindGrid(t){const el=$("g"+t),d=DS[t];
- el.addEventListener("focusout",e=>{const td=e.target.closest&&e.target.closest("td[data-k]");if(!td)return;const r=d.rows()[+td.parentNode.dataset.i];if(!r)return;const k=td.dataset.k,v=td.textContent.trim();if(v!==V(d,r,k)){d.set(r,k,v);if(t==="p")editarProj(r,k,v);if(t==="p"&&isO(k)&&splitOrient(v).length>1){draw(t);return}refDup()}td.textContent=V(d,r,k)});
+ el.addEventListener("focusout",e=>{const td=e.target.closest&&e.target.closest("td[data-k]");if(!td)return;const r=d.rows()[+td.parentNode.dataset.i];if(!r)return;const k=td.dataset.k,v=td.textContent.trim();if(v!==V(d,r,k)){d.set(r,k,v);if(isProj(t))editarProj(r,k,v);if(isProj(t)&&isO(k)&&splitOrient(v).length>1){draw(t);return}refDup()}td.textContent=V(d,r,k)});
+ el.addEventListener("change",e=>{const x=e.target.closest&&e.target.closest("select.sit");if(!x)return;mudarEtapa(t,+x.closest("tr").dataset.i,x.value)});
  el.addEventListener("input",e=>{const c=e.target.closest&&e.target.closest(".cf");if(!c)return;F[t][c.dataset.k]=c.value;aplicar(t)});
- el.addEventListener("click",e=>{const b=e.target.closest("[data-del]");if(!b)return;const i=+b.closest("tr").dataset.i,r=d.rows()[i];d.rows().splice(i,1);if(t==="p"&&r)excluir(r);draw(t)})}
+ el.addEventListener("click",e=>{const b=e.target.closest("[data-del]");if(!b)return;const i=+b.closest("tr").dataset.i,r=d.rows()[i];d.rows().splice(i,1);if(isProj(t)&&r)excluir(r);draw(t)})}
 function refDup(){DUP.length=0;let g=0;
  const grupos=(t,kf,motivo)=>{const m=new Map();DS[t].rows().forEach(r=>{const k=kf(r);if(k){if(!m.has(k))m.set(k,[]);m.get(k).push(r)}});m.forEach(l=>{if(l.length>1){g++;l.forEach(r=>DUP.push({g,t,r,motivo}))}})};
  grupos("p",r=>r.id&&"i"+r.id,"ID repetido");grupos("p",r=>norm(r.titulo),"Título duplicado");grupos("a",r=>norm(r.nome),"Nome repetido");grupos("a",r=>fold(r.email).trim(),"E-mail repetido");NG=g;
@@ -235,7 +252,7 @@ function refInst(){const m=new Map(),g=i=>{if(!m.has(i))m.set(i,{p:0,a:0});retur
  $("gInst").innerHTML=l.length?"<table><tr><th>Instituição</th><th>Projetos</th><th>Avaliadores</th></tr>"+l.map(([i,v])=>`<tr><td>${esc(i)}</td><td>${v.p}</td><td>${v.a}</td></tr>`).join("")+`<tr style="font-weight:700;background:#f2f6fc"><td>Total</td><td>${P.length}</td><td>${A.length}</td></tr></table>`:'<p style="padding:10px;color:var(--mut)">Nenhum dado carregado.</p>'}
 function aplicarDup(){const fs=Object.entries(F.d).filter(e=>e[1].trim()).map(([j,f])=>[+j,fold(f.trim())]);
  $("gd").querySelectorAll("tr[data-d]").forEach(tr=>{tr.hidden=!fs.every(([j,f])=>fold(tr.children[j].textContent).includes(f))})}
-function aba(x){[["P","sP"],["A","sA"],["D","sD"]].forEach(([k,id])=>{$("t"+k).classList.toggle("on",k===x);$(id).className=k===x?"card":"card hid"})}
+function aba(x){[["P","sP"],["X","sX"],["A","sA"],["D","sD"]].forEach(([k,id])=>{$("t"+k).classList.toggle("on",k===x);$(id).className=k===x?"card":"card hid"})}
 
 function tab(sh,n,btn){const same=cur&&cur.sh===sh&&cur.n===n,fv=same?cur.fv:{};cur={sh,n,btn,fv};const rows=sh[n],MAX=300,cs=[...new Set(rows.flatMap(r=>Object.keys(r)))],v=$("tv");
  v.innerHTML="<table><thead><tr>"+cs.map((c,j)=>`<th>${esc(c)}<input class="cf" data-j="${j}" value="${esc(fv[j]||"")}" placeholder="filtrar" aria-label="Filtrar ${esc(c)}"></th>`).join("")+'<th></th></tr></thead><tbody></tbody></table><p class="mut" style="padding:0 9px"></p>';
@@ -254,13 +271,12 @@ function render(d){const o=$("out");o.innerHTML="";
   Object.keys(sh).forEach(n=>{const x=document.createElement("button");x.textContent=`${n} (${sh[n].length})`;x.onclick=()=>tab(sh,n,x);tb.append(x);first=first||[sh,n,x]});h.append(t,tb);c.append(h)});
  const v=document.createElement("div");v.className="tw";v.id="tv";c.append(v);o.append(c);if(first)tab(...first);o.scrollIntoView({behavior:"smooth"})}
 
-async function lerProj(){const n=++sq.p,l=LINKS_SALVOS[modo].lp;P=[];draw("p");if(!l)return st("Link dos projetos deste núcleo não configurado.","er");
+async function lerProj(){const n=++sq.p,l=LINKS_SALVOS[modo].lp;P=[];O=[];draw("p");draw("x");if(!l)return st("Link dos projetos deste núcleo não configurado.","er");
  st("Carregando projetos de "+modo+"...");
  try{const rows=await lerCsv(l);if(n!==sq.p)return;const r=prepararProjetos(rows);if(!r.length)throw new Error("planilha de projetos vazia ou sem a coluna 'id da submissão'");
   if(semSit)throw new Error("não encontrei a coluna 'Situação' na planilha, então não dá para filtrar só os projetos em Submissão");
-  const f=r.filter(subm);
-  if(!f.length)throw new Error("nenhum projeto com situação 'Submissão'. Situações encontradas: "+[...new Set(r.map(p=>String(p.situacao).trim()||"(vazio)"))].join(", "));
-  P=f;draw("p");st(`${P.length} projetos em Submissão carregados${r.length>f.length?` (${r.length-f.length} de outras situações ignorados)`:""}. Confira, edite ou exclua o que precisar e depois gere a distribuição.`,"ok")}
+  P=r.filter(x=>emProj(x.situacao));O=r.filter(x=>!emProj(x.situacao));draw("p");draw("x");
+  st(`${P.length} projeto(s) em Submissão/Avaliação carregados${O.length?` e ${O.length} em outras situações (aba "Outras situações")`:""}. Confira, edite ou exclua o que precisar e depois gere a distribuição.`,"ok")}
  catch(e){if(n===sq.p)st("Erro: "+e.message,"er")}}
 async function lerAval(){const n=++sq.a,l=$("la").value.trim();if(!l)return st("Cole o link da planilha de avaliadores.","er");
  st("Carregando avaliadores...");
@@ -275,12 +291,12 @@ async function gerar(){try{if(!P.length)return st("Nenhum projeto carregado.","e
  catch(e){st("Erro: "+e.message,"er")}}
 function carregar(){const l={...LINKS_SALVOS[modo]};try{Object.assign(l,JSON.parse(localStorage.getItem("sdcv_"+modo))||{})}catch(e){}$("la").value=l.la||"";$("lr").value=l.lr||""}
 function setModo(m){modo=m;$("mS").className=m==="SEMCITEC"?"on":"";$("mF").className=m==="FECEG"?"on":"";$("bR").className=m==="SEMCITEC"?"":"hid";$("bF").className=m==="FECEG"?"":"hid";
- $("out").innerHTML="";res={};A=[];$("bY").className=syncOn()?"":"hid";ss(syncOn()?"Sincronização com a planilha oficial ativa.":"","ok");$("qp").value=$("qa").value="";F.p={};F.a={};F.d={};dupVisto=0;aba("P");draw("a");carregar();lerProj();if($("la").value.trim())lerAval()}
+ $("out").innerHTML="";res={};A=[];$("bY").className=syncOn()?"":"hid";ss(syncOn()?"Sincronização com a planilha oficial ativa.":"","ok");$("qp").value=$("qa").value=$("qx").value="";F.p={};F.x={};F.a={};F.d={};dupVisto=0;aba("P");draw("a");carregar();lerProj();if($("la").value.trim())lerAval()}
 $("bre").onclick=enviar;$("mS").onclick=()=>setModo("SEMCITEC");$("mF").onclick=()=>setModo("FECEG");$("bg").onclick=gerar;$("bl").onclick=lerProj;$("bca").onclick=lerAval;
 $("bad").onclick=()=>{A.push({nome:"Novo avaliador",inst:"Outros/Sem Instituição",disp:"",email:""});$("qa").value="";draw("a");$("ga").scrollTop=1e9};
-$("qp").oninput=()=>draw("p");$("qa").oninput=()=>draw("a");$("tP").onclick=()=>aba("P");$("tA").onclick=()=>aba("A");$("tD").onclick=()=>aba("D");
+$("qp").oninput=()=>draw("p");$("qa").oninput=()=>draw("a");$("tP").onclick=()=>aba("P");$("tX").onclick=()=>aba("X");$("qx").oninput=()=>draw("x");$("tA").onclick=()=>aba("A");$("tD").onclick=()=>aba("D");
 $("gd").onclick=e=>{const b=e.target.closest("[data-del]");if(!b)return;const x=DUP[+b.closest("tr").dataset.d],a=DS[x.t].rows(),i=a.indexOf(x.r);if(i>=0){a.splice(i,1);if(x.t==="p")excluir(x.r)}draw("p");draw("a")};
-["p","a"].forEach(bindGrid);
+["p","x","a"].forEach(bindGrid);
 $("gd").addEventListener("focusout",e=>{const td=e.target.closest&&e.target.closest("td[data-k]");if(!td)return;const x=DUP[+td.parentNode.dataset.d];if(!x)return;const d=DS[x.t],k=td.dataset.k,v=td.textContent.trim();if(v!==V(d,x.r,k)){d.set(x.r,k,v);if(x.t==="p")editarProj(x.r,k,v);draw("p");draw("a")}else td.textContent=V(d,x.r,k)});
 $("gd").addEventListener("input",e=>{const c=e.target.closest&&e.target.closest(".cf");if(!c)return;F.d[c.dataset.j]=c.value;aplicarDup()});
 $("bs").onclick=()=>{try{localStorage.setItem("sdcv_"+modo,JSON.stringify({la:$("la").value.trim(),lr:$("lr").value.trim()}));st("Links salvos neste navegador.","ok")}catch(e){st("Não foi possível salvar neste navegador.","er")}};
