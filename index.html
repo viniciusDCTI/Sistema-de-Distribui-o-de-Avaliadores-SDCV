@@ -32,6 +32,7 @@ button.x{padding:1px 8px;border-color:var(--er);color:var(--er)}.tw{max-height:4
 .g1 td{background:#fff7e0}
 select.sit{font:inherit;font-size:.85rem;padding:3px 4px;border:1px solid var(--line);border-radius:6px;background:transparent;color:inherit;cursor:pointer}select.sit option{color:#000;background:#fff}
 #tD.al:not(.on){border-color:var(--er);color:var(--er)}
+button.lk{border:0;background:none;padding:0 4px;color:var(--ac);text-decoration:underline;font-weight:700;cursor:pointer}button.lk:hover{background:#e6edf8}
 </style></head>
 <body><main>
 <h1>Sistema de Distribuição de Avaliadores SDCV</h1>
@@ -63,7 +64,8 @@ select.sit{font:inherit;font-size:.85rem;padding:3px 4px;border:1px solid var(--
 <div class="tw" id="gd"></div></section>
 <section class="card" id="sI"><h2>Instituições <span class="mut" id="nInst"></span></h2>
 <p class="mut" style="margin:0 0 10px">Resumo por instituição dos projetos e avaliadores carregados. Atualiza sozinho quando você edita ou exclui linhas. Confira antes de gerar o relatório.</p>
-<div class="tw" id="gInst"></div></section>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 10px"><label for="lim" style="display:inline;margin:0">Limite total de projetos</label><input type="number" id="lim" min="0" value="216" style="width:110px"><span id="resCota" class="mut"></span></div>
+<div class="tw" id="gInst"></div><div id="dInst"></div></section>
 <section class="card"><div id="wd" class="av" style="margin:0 0 12px" hidden></div><button id="bg" class="p">Gerar distribuição e relatório</button></section>
 <section id="out"></section>
 </main>
@@ -213,8 +215,11 @@ const colsProj=L=>{const n=Math.max(1,...L.map(p=>p.orients.length));return[["id
 const isProj=t=>t==="p"||t==="x";
 const ETAPAS=["Submissão","Avaliação","Aprovado"];
 const etapaDe=s=>{const f=fold(s).trim();return/^submiss/.test(f)?0:/^(em )?avaliac/.test(f)?1:/^aprov/.test(f)?2:-1};
-const emProj=s=>{const e=etapaDe(s);return e>=0};
-const selSit=s=>{const e=etapaDe(s),v=String(s??"").trim();return`<select class="sit" aria-label="Situação">${ETAPAS.map((n,i)=>`<option${i===e?" selected":""}>${n}</option>`).join("")}${e<0?(v?`<option selected>${esc(v)}</option>`:'<option value="" selected>(sem situação)</option>'):""}</select>`};
+const SITF=["Corrigir","Incompleta","Duplicada","Classificado","Recusado","Desclassificado"],SITK=["corrig","incomplet","duplicad","classificad","recusad","desclassificad"];
+const etapaF=s=>{const f=fold(s).trim();return SITK.findIndex(k=>f.startsWith(k))};
+const emProj=s=>{const e=etapaDe(s);return e>=0||(modo==="FECEG"&&etapaF(s)>=0)};
+const selSit=s=>{if(modo==="FECEG"){const e=etapaF(s),v=String(s??"").trim();return`<select class="sit" aria-label="Situação">${SITF.map((n,i)=>`<option${i===e?" selected":""}>${n}</option>`).join("")}${e<0?(v?`<option selected>${esc(v)}</option>`:'<option value="" selected>(sem situação)</option>'):""}</select>`}
+ const e=etapaDe(s),v=String(s??"").trim();return`<select class="sit" aria-label="Situação">${ETAPAS.map((n,i)=>`<option${i===e?" selected":""}>${n}</option>`).join("")}${e<0?(v?`<option selected>${esc(v)}</option>`:'<option value="" selected>(sem situação)</option>'):""}</select>`};
 function mudarEtapa(t,i,val){const L=t==="p"?P:O,p=L[i];if(!p||!val||val===p.situacao)return;
  p.situacao=val;editarProj(p,"situacao",val);const vaiP=emProj(val);let msg=`Situação alterada para "${val}".`;
  if(vaiP&&t==="x"){L.splice(i,1);P.push(p);msg+=' Projeto movido para a aba "Projetos".'}else if(!vaiP&&t==="p"){L.splice(i,1);O.push(p);msg+=' Projeto movido para a aba "Outras situações" (não entra na distribuição).'}
@@ -245,11 +250,25 @@ function refDup(){DUP.length=0;let g=0;
  $("tD").textContent=`Duplicados (${g})`;$("tD").classList.toggle("al",!!g);$("wd").hidden=!g;$("wd").textContent=`⚠ ${g} grupo(s) de cadastros repetidos. Revise na aba Duplicados antes de gerar.`;
  $("bg").textContent=g&&dupVisto===g?`Gerar assim mesmo (${g} grupo(s) repetido(s))`:"Gerar distribuição e relatório";
  $("gd").innerHTML=g?"<table><tr>"+["Grupo","Cadastro","Motivo","Instituição","ID / Nome","Título / E-mail","Situação","Detalhe"].map((n,j)=>`<th>${n}<input class="cf" data-j="${j}" value="${esc(F.d[j]||"")}" placeholder="filtrar" aria-label="Filtrar ${n}"></th>`).join("")+"<th></th></tr>"+DUP.map((x,i)=>{const p=x.t==="p";return`<tr class="${x.g%2?"g1":""}" data-d="${i}"><td>${x.g}</td><td>${p?"Projeto":"Avaliador"}</td><td>${x.motivo}</td><td contenteditable="true" data-k="inst">${esc(x.r.inst)}</td><td contenteditable="true" data-k="${p?"id":"nome"}">${esc(p?x.r.id:x.r.nome)}</td><td contenteditable="true" data-k="${p?"titulo":"email"}">${esc(p?x.r.titulo:x.r.email)}</td><td data-v="${p?esc(x.r.situacao):""}">${p?selSit(x.r.situacao):""}</td><td contenteditable="true" data-k="${p?"autores":"disp"}">${esc(p?x.r.autores:x.r.disp)}</td><td><button class="x" data-del="1" title="Excluir este cadastro">✕</button></td></tr>`}).join("")+"</table>":'<p style="padding:10px;color:var(--ok)">Nenhum cadastro repetido encontrado.</p>';aplicarDup();refInst()}
-function refInst(){const m=new Map(),g=i=>{if(!m.has(i))m.set(i,{p:0,a:0});return m.get(i)};
- P.forEach(p=>g(p.inst).p++);A.forEach(a=>g(a.inst).a++);
+let SEL=null;
+const RECF=SITF;
+function recDe(s){const f=fold(s).trim();if(modo==="FECEG"){const i=SITK.findIndex(k=>f.startsWith(k));if(i>=0)return RECF[i]}const v=String(s??"").trim();return v?titleCase(v):"Sem situação"}
+// Cotas: acha o maior teto T tal que a soma de min(projetos,T) caiba no limite; quem tem menos que T é aceito inteiro, e a sobra vai 1 a 1 para os maiores.
+function cotas(ns,lim){const tot=ns.reduce((a,b)=>a+b,0);if(tot<=lim)return{teto:Math.max(0,...ns),vagas:ns.slice(),cabe:true};
+ let lo=0,hi=Math.max(...ns);while(lo<hi){const mid=Math.ceil((lo+hi)/2);if(ns.reduce((a,n)=>a+Math.min(n,mid),0)<=lim)lo=mid;else hi=mid-1}
+ const v=ns.map(n=>Math.min(n,lo));let sobra=lim-v.reduce((a,b)=>a+b,0);
+ ns.map((n,i)=>i).filter(i=>ns[i]>lo).sort((a,b)=>ns[b]-ns[a]).forEach(i=>{if(sobra>0){v[i]++;sobra--}});return{teto:lo,vagas:v,cabe:false}}
+function detInst(){const el=$("dInst");if(!SEL){el.innerHTML="";return}
+ const l=P.filter(p=>p.inst===SEL.i&&recDe(p.situacao)===SEL.r);if(!l.length){SEL=null;el.innerHTML="";return}
+ el.innerHTML=`<div class="card" style="margin:12px 0 0;background:#f7faff"><div class="row" style="margin:0 0 8px;align-items:center"><strong>${esc(SEL.i)} — ${esc(SEL.r)} (${l.length})</strong><button id="fDet" style="margin-left:auto">Fechar</button></div><div class="tw"><table><tr><th>ID</th><th>Título</th><th>Categoria</th><th>Autores</th><th>Situação</th></tr>${l.map(p=>`<tr><td>${esc(p.id)}</td><td>${esc(p.titulo)}</td><td>${esc(p.cat)}</td><td>${esc(p.autores)}</td><td>${esc(p.situacao)}</td></tr>`).join("")}</table></div></div>`}
+function refInst(){const m=new Map(),g=i=>{if(!m.has(i))m.set(i,{p:0,a:0,r:{}});return m.get(i)},cols=modo==="FECEG"?[...RECF]:[];
+ P.forEach(p=>{const v=g(p.inst),r=recDe(p.situacao);v.p++;v.r[r]=(v.r[r]||0)+1;if(!cols.includes(r))cols.push(r)});A.forEach(a=>g(a.inst).a++);
+ if(modo!=="FECEG")cols.sort((a,b)=>{const x=etapaDe(a),y=etapaDe(b);return(x<0?9:x)-(y<0?9:y)});
  const l=[...m.entries()].sort((x,y)=>y[1].p-x[1].p||y[1].a-x[1].a||x[0].localeCompare(y[0]));
+ const lv=parseInt($("lim").value),lim=isNaN(lv)?216:Math.max(0,lv),q=cotas(l.map(x=>x[1].p),lim),acc=q.vagas.reduce((a,b)=>a+b,0);
+ $("resCota").textContent=P.length?(q.cabe?`Todos os ${P.length} projetos cabem no limite.`:`Teto por instituição: ${q.teto} · aceitos ${acc} de ${P.length} projetos.`):"";
  $("nInst").textContent=`(${l.length})`;
- $("gInst").innerHTML=l.length?"<table><tr><th>Instituição</th><th>Projetos</th><th>Avaliadores</th></tr>"+l.map(([i,v])=>`<tr><td>${esc(i)}</td><td>${v.p}</td><td>${v.a}</td></tr>`).join("")+`<tr style="font-weight:700;background:#f2f6fc"><td>Total</td><td>${P.length}</td><td>${A.length}</td></tr></table>`:'<p style="padding:10px;color:var(--mut)">Nenhum dado carregado.</p>'}
+ $("gInst").innerHTML=l.length?"<table><tr><th>Instituição</th><th>Projetos</th><th>Avaliadores</th>"+cols.map(c=>`<th>${esc(c)}</th>`).join("")+`<th>Vagas (limite ${lim})</th><th>Excedente</th></tr>`+l.map(([i,v],k)=>{const ex=v.p-q.vagas[k];return`<tr><td>${esc(i)}</td><td>${v.p}</td><td>${v.a}</td>${cols.map(c=>{const n=v.r[c]||0;return n?`<td><button class="lk" data-ins="${esc(i)}" data-rc="${esc(c)}" title="Ver os projetos">${n}</button></td>`:"<td>0</td>"}).join("")}<td><b>${q.vagas[k]}</b></td><td${ex?' style="color:var(--er)"':""}>${ex}</td></tr>`}).join("")+`<tr style="font-weight:700;background:#f2f6fc"><td>Total</td><td>${P.length}</td><td>${A.length}</td>${cols.map(c=>`<td>${l.reduce((a,[,v])=>a+(v.r[c]||0),0)}</td>`).join("")}<td>${acc}</td><td>${P.length-acc}</td></tr></table>`:'<p style="padding:10px;color:var(--mut)">Nenhum dado carregado.</p>';detInst()}
 function aplicarDup(){const fs=Object.entries(F.d).filter(e=>e[1].trim()).map(([j,f])=>[+j,fold(f.trim())]);
  $("gd").querySelectorAll("tr[data-d]").forEach(tr=>{tr.hidden=!fs.every(([j,f])=>fold(tr.children[j].dataset.v??tr.children[j].textContent).includes(f))})}
 function aba(x){[["P","sP"],["X","sX"],["A","sA"],["D","sD"]].forEach(([k,id])=>{$("t"+k).classList.toggle("on",k===x);$(id).className=k===x?"card":"card hid"})}
@@ -271,11 +290,18 @@ function render(d){const o=$("out");o.innerHTML="";
   Object.keys(sh).forEach(n=>{const x=document.createElement("button");x.textContent=`${n} (${sh[n].length})`;x.onclick=()=>tab(sh,n,x);tb.append(x);first=first||[sh,n,x]});h.append(t,tb);c.append(h)});
  const v=document.createElement("div");v.className="tw";v.id="tv";c.append(v);o.append(c);if(first)tab(...first);o.scrollIntoView({behavior:"smooth"})}
 
+const ABA_EXC="Excluídos";
+async function addExc(l,n){try{const m=String(l).match(/\/spreadsheets\/d\/([\w-]+)/);if(!m)return;
+ const rows=await lerCsv(`https://docs.google.com/spreadsheets/d/${m[1]}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(ABA_EXC)}`);if(n!==sq.p)return;
+ const sv=semSit,lista=prepararProjetos(rows.map(r=>{r={...r};if(!("id da submissão" in r)){const k=Object.keys(r).find(k=>/^id(\s|$)/.test(k));if(k)r["id da submissão"]=r[k]}
+  if(!("título" in r)&&"titulo" in r)r["título"]=r["titulo"];if(!("nome completo (autor 1)" in r)&&"autor1" in r)r["nome completo (autor 1)"]=r["autor1"];return r}));semSit=sv;
+ const ja=new Set([...P,...O].map(x=>x.id));
+ lista.forEach(p=>{if(ja.has(p.id))return;ja.add(p.id);p.situacao="Rejeitado";p.o.situacao="Rejeitado";p.exc=true;O.push(p)})}catch(e){}}
 async function lerProj(){const n=++sq.p,l=LINKS_SALVOS[modo].lp;P=[];O=[];draw("p");draw("x");if(!l)return st("Link dos projetos deste núcleo não configurado.","er");
  st("Carregando projetos de "+modo+"...");
  try{const rows=await lerCsv(l);if(n!==sq.p)return;const r=prepararProjetos(rows);if(!r.length)throw new Error("planilha de projetos vazia ou sem a coluna 'id da submissão'");
   if(semSit)throw new Error("não encontrei a coluna 'Situação' na planilha, então não dá para filtrar só os projetos em Submissão");
-  P=r.filter(x=>emProj(x.situacao));O=r.filter(x=>!emProj(x.situacao));draw("p");draw("x");
+  P=r.filter(x=>emProj(x.situacao));O=r.filter(x=>!emProj(x.situacao));await addExc(l,n);if(n!==sq.p)return;draw("p");draw("x");
   st(`${P.length} projeto(s) em Submissão/Avaliação/Aprovado carregados${O.length?` e ${O.length} em outras situações (aba "Outras situações")`:""}. Confira, edite ou exclua o que precisar e depois gere a distribuição.`,"ok")}
  catch(e){if(n===sq.p)st("Erro: "+e.message,"er")}}
 async function lerAval(){const n=++sq.a,l=$("la").value.trim();if(!l)return st("Cole o link da planilha de avaliadores.","er");
@@ -301,5 +327,7 @@ $("gd").addEventListener("focusout",e=>{const td=e.target.closest&&e.target.clos
 $("gd").addEventListener("change",e=>{const s=e.target.closest&&e.target.closest("select.sit");if(!s)return;const x=DUP[+s.closest("tr").dataset.d];if(!x||x.t!=="p")return;const i=P.indexOf(x.r);if(i>=0)mudarEtapa("p",i,s.value)});
 $("gd").addEventListener("input",e=>{const c=e.target.closest&&e.target.closest(".cf");if(!c)return;F.d[c.dataset.j]=c.value;aplicarDup()});
 $("bs").onclick=()=>{try{localStorage.setItem("sdcv_"+modo,JSON.stringify({la:$("la").value.trim(),lr:$("lr").value.trim()}));st("Links salvos neste navegador.","ok")}catch(e){st("Não foi possível salvar neste navegador.","er")}};
+$("lim").oninput=refInst;
+$("sI").addEventListener("click",e=>{const b=e.target.closest("button.lk");if(b){SEL={i:b.dataset.ins,r:b.dataset.rc};detInst();$("dInst").scrollIntoView({behavior:"smooth",block:"nearest"});return}if(e.target.closest("#fDet")){SEL=null;detInst()}});
 setModo("SEMCITEC");
 </script></body></html>
