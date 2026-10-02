@@ -209,7 +209,7 @@ function enviar(){return envP||(envP=(async()=>{try{
 addEventListener("beforeunload",e=>{if(PEND.length){e.preventDefault();e.returnValue=""}});
 const tipoDe=c=>{c=norm(c);return c.includes("relato")?"Relato":(c.includes("pesquisa")||c.includes("academica"))?"Pesquisa":"Outros"};
 const V=(d,r,k)=>String(d.val?d.val(r,k):r[k]??""),isO=k=>/^o\d+$/.test(k),F={p:{},x:{},a:{},d:{}},DUP=[];let NG=0,dupVisto=0;
-const colsProj=L=>{const n=Math.max(1,...L.map(p=>p.orients.length));return[["id","ID"],["titulo","Título"],["cat","Categoria"],["autores","Autores"],["inst","Instituição"],["eixo","Eixo"],...Array.from({length:n},(_,i)=>["o"+i,"Orientador "+(i+1)]),["situacao","Situação"]]};
+const colsProj=L=>{const n=Math.max(1,...L.map(p=>p.orients.length));return[["id","ID"],["titulo","Título"],["situacao","Situação"],["cat","Categoria"],["autores","Autores"],["inst","Instituição"],["eixo","Eixo"],...Array.from({length:n},(_,i)=>["o"+i,"Orientador "+(i+1)])]};
 const isProj=t=>t==="p"||t==="x";
 const ETAPAS=["Submissão","Avaliação","Aprovado"];
 const etapaDe=s=>{const f=fold(s).trim();return/^submiss/.test(f)?0:/^(em )?avaliac/.test(f)?1:/^aprov/.test(f)?2:-1};
