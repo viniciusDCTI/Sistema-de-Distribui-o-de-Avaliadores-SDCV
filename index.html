@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sistema de Dados - SDC</title>
+<title>Sistema de Distribuição de Avaliadores SDCV</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -225,7 +225,7 @@ const colsProj=L=>{const n=Math.max(1,...L.map(p=>p.orients.length));return[["id
 const isProj=t=>t==="p"||t==="x";
 const ETAPAS=["Submissão","Avaliação","Aprovado"];
 const etapaDe=s=>{const f=fold(s).trim();return/^submiss/.test(f)?0:/^(em )?avaliac/.test(f)?1:/^aprov/.test(f)?2:-1};
-const SITF=["Corrigir","Incompleta","Duplicada","Classificado","Recusado","Desclassificado"],SITK=["corrig","incomplet","duplicad","classificad","recusad","desclassificad"];
+const SITF=["OK","Corrigir","Recusado"],SITK=["ok","corrig","recusad"];
 const etapaF=s=>{const f=fold(s).trim();return SITK.findIndex(k=>f.startsWith(k))};
 const emProj=s=>{const e=etapaDe(s);return e>=0||(modo==="FECEG"&&etapaF(s)>=0)};
 const selSit=s=>{if(modo==="FECEG"){const e=etapaF(s),v=String(s??"").trim();return`<select class="sit" aria-label="Situação">${SITF.map((n,i)=>`<option${i===e?" selected":""}>${n}</option>`).join("")}${e<0?(v?`<option selected>${esc(v)}</option>`:'<option value="" selected>(sem situação)</option>'):""}</select>`}
@@ -271,11 +271,13 @@ function cotas(ns,lim){const tot=ns.reduce((a,b)=>a+b,0);if(tot<=lim)return{teto
 const limAtual=()=>{const v=parseInt($("lim").value);return isNaN(v)?LIMITES[modo]:Math.max(0,v)};
 // Seleção: aplica o limite por instituição (cotas) e separa, na ordem da planilha, os projetos aceitos (sel) dos excedentes (fila).
 // Elegibilidade para "Projetos aprovados": SEMCITEC = situação Aprovado; FECEG = verificação OK. Os demais ficam só em "Projetos geral".
-const elegivel=p=>{if(modo==="SEMCITEC")return etapaDe(p.situacao)===2;const k=Object.keys(p.extra||{}).find(k=>fold(k).includes("verific"));return!!k&&fold(p.extra[k]).trim()==="ok"};
-function calcSel(){const EL=P.filter(elegivel),n=new Map();EL.forEach(p=>n.set(p.inst,(n.get(p.inst)||0)+1));
- const ks=[...n.keys()].sort((a,b)=>n.get(b)-n.get(a)||a.localeCompare(b)),q=cotas(ks.map(k=>n.get(k)),limAtual()),vg=new Map(ks.map((k,i)=>[k,q.vagas[i]])),usados=new Map(),sel=[],fila=[];
- EL.forEach(p=>{const u=usados.get(p.inst)||0;if(u<vg.get(p.inst)){usados.set(p.inst,u+1);sel.push(p)}else fila.push(p)});return{sel,fila,vg,q}}
-function drawFila(){const{vg}=calcSel(),q=fold($("qf").value.trim()),mt=p=>`Limite de ${vg.get(p.inst)||0} projeto(s) para ${p.inst} atingido`,
+const elegivel=p=>modo==="SEMCITEC"?etapaDe(p.situacao)===2:etapaF(p.situacao)===0;
+function cotaDe(L){const n=new Map();L.forEach(p=>n.set(p.inst,(n.get(p.inst)||0)+1));
+ const ks=[...n.keys()].sort((a,b)=>n.get(b)-n.get(a)||a.localeCompare(b)),q=cotas(ks.map(k=>n.get(k)),limAtual());return{q,vg:new Map(ks.map((k,i)=>[k,q.vagas[i]]))}}
+// vg/q = vagas pela progressão do total geral de projetos (só para a tabela de Instituições); vgE = vagas só entre os elegíveis (usadas em aprovados e fila).
+function calcSel(){const EL=P.filter(elegivel),{q,vg}=cotaDe(P),{vg:vgE}=cotaDe(EL),usados=new Map(),sel=[],fila=[];
+ EL.forEach(p=>{const u=usados.get(p.inst)||0;if(u<vgE.get(p.inst)){usados.set(p.inst,u+1);sel.push(p)}else fila.push(p)});return{sel,fila,vg,q,vgE}}
+function drawFila(){const{vgE:vg}=calcSel(),q=fold($("qf").value.trim()),mt=p=>`Limite de ${vg.get(p.inst)||0} projeto(s) para ${p.inst} atingido`,
  L=FILA.map((p,i)=>[p,i+1]).filter(([p,k])=>!q||fold([k,p.id,p.titulo,p.situacao,p.cat,p.autores,p.inst].join(" ")).includes(q));
  $("nf").textContent=`(${L.length===FILA.length?FILA.length:L.length+" de "+FILA.length})`;$("tF").textContent=`Fila de espera (${FILA.length})`;
  $("gf").innerHTML=FILA.length?"<table><tr>"+["Posição","ID","Título","Situação","Categoria","Autores","Instituição","Motivo"].map(h=>`<th>${h}</th>`).join("")+"</tr>"+L.map(([p,k])=>`<tr><td>${k}</td><td>${esc(p.id)}</td><td>${esc(p.titulo)}</td><td>${esc(p.situacao)}</td><td>${esc(p.cat)}</td><td>${esc(p.autores)}</td><td>${esc(p.inst)}</td><td>${esc(mt(p))}</td></tr>`).join("")+"</table>":'<p style="padding:10px;color:var(--ok)">Nenhum projeto excedente: todos cabem no limite.</p>'}
@@ -285,7 +287,7 @@ function drawSel(){const q=fold($("qs").value.trim()),L=SELP.map((p,i)=>[p,i+1])
 const sigFila=()=>modo+"|"+limAtual()+"|"+FILA.map(p=>[p.id,p.titulo,p.situacao,p.inst].join("~")).join("¦");
 function agendarFila(){clearTimeout(filaT);if(!PROJ_OK||!syncOn()||!$("sy").checked||filaSig[modo]===sigFila())return;const m=modo;filaT=setTimeout(()=>enviarFila(m),2000)}
 async function enviarFila(m){if(m!==modo||!PROJ_OK)return;await envP;if(m!==modo||!PROJ_OK)return;
- const c=SYNC[m],sig=sigFila(),lim=limAtual(),{vg}=calcSel(),lista=FILA.map((p,i)=>({posicao:i+1,id:p.id,titulo:p.titulo,autor1:String(p.autores||"").split("; ")[0]||"",inst:p.inst,cat:p.cat,situacao:p.situacao,motivo:`Limite de ${vg.get(p.inst)||0} projeto(s) para ${p.inst} atingido`}));
+ const c=SYNC[m],sig=sigFila(),lim=limAtual(),{vgE:vg}=calcSel(),lista=FILA.map((p,i)=>({posicao:i+1,id:p.id,titulo:p.titulo,autor1:String(p.autores||"").split("; ")[0]||"",inst:p.inst,cat:p.cat,situacao:p.situacao,motivo:`Limite de ${vg.get(p.inst)||0} projeto(s) para ${p.inst} atingido`}));
  try{ss("Atualizando a fila de espera na planilha oficial...");
   const r=await fetch(c.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({token:c.token,itens:[],fila:{aba:ABA_FILA,limite:lim,lista}})});
   const j=await r.json();if(!j.ok)throw new Error(j.erro||"resposta inválida");
@@ -299,7 +301,7 @@ function refInst(){const m=new Map(),g=i=>{if(!m.has(i))m.set(i,{p:0,a:0,r:{}});
  P.forEach(p=>{const v=g(p.inst),r=recDe(p.situacao);v.p++;v.r[r]=(v.r[r]||0)+1;if(!cols.includes(r))cols.push(r)});A.forEach(a=>g(a.inst).a++);
  if(modo!=="FECEG")cols.sort((a,b)=>{const x=etapaDe(a),y=etapaDe(b);return(x<0?9:x)-(y<0?9:y)});
  const l=[...m.entries()].sort((x,y)=>y[1].p-x[1].p||y[1].a-x[1].a||x[0].localeCompare(y[0]));
- const lim=limAtual(),{sel,fila,vg,q}=calcSel(),acc=sel.length;
+ const lim=limAtual(),{sel,fila,vg,q}=calcSel(),acc=[...vg.values()].reduce((a,b)=>a+b,0);
  $("resCota").textContent=P.length?(q.cabe?`Todos os ${P.length} projetos cabem no limite.`:`Teto por instituição: ${q.teto} · aceitos ${acc} de ${P.length} projetos.`):"";
  $("nInst").textContent=`(${l.length})`;
  $("gInst").innerHTML=l.length?"<table><tr><th>Instituição</th><th>Projetos</th><th>Avaliadores</th>"+cols.map(c=>`<th>${esc(c)}</th>`).join("")+`<th>Vagas (limite ${lim})</th><th>Excedente</th></tr>`+l.map(([i,v],k)=>{const ex=v.p-(vg.get(i)||0);return`<tr><td>${esc(i)}</td><td>${v.p}</td><td>${v.a}</td>${cols.map(c=>{const n=v.r[c]||0;return n?`<td><button class="lk" data-ins="${esc(i)}" data-rc="${esc(c)}" title="Ver os projetos">${n}</button></td>`:"<td>0</td>"}).join("")}<td><b>${vg.get(i)||0}</b></td><td${ex?' style="color:var(--er)"':""}>${ex}</td></tr>`}).join("")+`<tr style="font-weight:700;background:#f2f6fc"><td>Total</td><td>${P.length}</td><td>${A.length}</td>${cols.map(c=>`<td>${l.reduce((a,[,v])=>a+(v.r[c]||0),0)}</td>`).join("")}<td>${acc}</td><td>${P.length-acc}</td></tr></table>`:'<p style="padding:10px;color:var(--mut)">Nenhum dado carregado.</p>';detInst();FILA=fila;SELP=sel;drawFila();drawSel();agendarFila()}
