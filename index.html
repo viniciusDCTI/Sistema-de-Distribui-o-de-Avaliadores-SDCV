@@ -54,7 +54,8 @@ button.lk{border:0;background:none;padding:0 4px;color:var(--ac);text-decoration
 <div class="bar"><input id="qx" placeholder="Buscar projeto..." aria-label="Buscar projeto"></div>
 <div class="tw" id="gx"></div></section>
 <section class="card hid" id="sA"><h2>Avaliadores <span class="mut" id="na"></span></h2>
-<label for="la">Link da planilha de avaliadores</label><input id="la" placeholder="Cole o link do Google Sheets (compartilhado como 'qualquer pessoa com o link')">
+<label for="la">Link da planilha de avaliadores</label><input id="la" placeholder="Cole o link do Google Sheets (compartilhado como 'qualquer pessoa com o link')"><div id="laN" class="mut" style="margin-top:4px"></div>
+<label for="fa">Ou carregue um arquivo de avaliadores (.csv ou .xlsx)</label><input type="file" id="fa" accept=".csv,.xlsx,.xls">
 <div id="bR"><label for="lr">Link do relatório de avaliação (recomendações) - opcional</label><input id="lr"></div>
 <div class="row" style="margin:12px 0"><button id="bca" class="p">Carregar avaliadores</button><button id="bad">+ Adicionar avaliador</button><button id="bs">Salvar links neste navegador</button></div>
 <div class="bar"><input id="qa" placeholder="Buscar avaliador..." aria-label="Buscar avaliador"></div>
@@ -79,11 +80,11 @@ button.lk{border:0;background:none;padding:0 4px;color:var(--ac);text-decoration
 </main>
 <script>
 // ===== LINKS SALVOS: planilha de projetos fixa de cada núcleo =====
-const LINKS_SALVOS={SEMCITEC:{lp:"https://docs.google.com/spreadsheets/d/1ISTv8UmUl-6Qhzf6zfyHi6hGw1UBgzdt4kcRUOHNpTQ/edit?usp=drive_link",la:"",lr:""},FECEG:{lp:"https://docs.google.com/spreadsheets/d/1Zwdz0YqeqzLQ_t-KqQL_X6UKjQt-5A-Voq7ooB4JerE/edit?usp=sharing",la:"",lr:""}};
+const LINKS_SALVOS={SEMCITEC:{lp:"https://docs.google.com/spreadsheets/d/1ISTv8UmUl-6Qhzf6zfyHi6hGw1UBgzdt4kcRUOHNpTQ/edit?usp=drive_link",la:"https://docs.google.com/spreadsheets/d/1oiZZSgBFabz_yiXdmaoJuKF8nyu0NRXOYztpoKIX7g0/edit?usp=sharing",lr:""},FECEG:{lp:"https://docs.google.com/spreadsheets/d/1Zwdz0YqeqzLQ_t-KqQL_X6UKjQt-5A-Voq7ooB4JerE/edit?usp=sharing",la:"",lr:""}};
 // ===== SINCRONIZAÇÃO DAS EXCLUSÕES COM A PLANILHA OFICIAL =====
 // Cole aqui a URL (/exec) do Apps Script (arquivo Code.gs) e o mesmo TOKEN definido nele. Vazio = sincronização desligada.
 const SYNC={SEMCITEC:{url:"https://script.google.com/macros/s/AKfycbyPTM0pjvoZyYHS0Rrp8aOB3-2ZLqur85wfBPslUvFjQXW4Mjw0g-fLdZCuSptxxwASdQ/exec",token:"Alice01@"},FECEG:{url:"https://script.google.com/macros/s/AKfycbwQrdTcmuw3Avv1IRVdNgc_LzIa4zQ5JNMglyQmK43Zdjn7Q7H7-4YqvlcuwKpSQRSa/exec",token:"Alice01@"}};
-const CFG={SEMCITEC:{porAval:10,salas:["Sala 1","Sala 2","Sala 3","Sala 4"]},FECEG:{dataOnline:"13/10",porTurno:50}};
+const CFG={SEMCITEC:{porAval:10,avalSala:3,salas:["Sala 1","Sala 2","Sala 3","Sala 4"]},FECEG:{dataOnline:"13/10",porTurno:50}};
 const LIMITES={SEMCITEC:120,FECEG:216},ABA_FILA="Fila de espera";
 const DIAS=["Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado","Domingo"];
 const EXTRAS=["verificação","telefone (autor 1)","telefone (autor 2)","telefone (autor 3)","e-mail orientadores(as)"];
@@ -144,8 +145,11 @@ function prepararProjetos(rows){const fk=(rows.length?Object.keys(rows[0]):[]).m
  return{id:String(r["id da submissão"]??"").trim(),titulo:limparHtml(r["título"]),cat,autores:aut.join("; "),inst,insts:ins,eixo:r["eixo"]||"",orient:orients.join("; "),orients,situacao:kS?String(r[kS]??"").trim():"",
  tipo:c.includes("relato")?"Relato":(c.includes("pesquisa")||c.includes("academica"))?"Pesquisa":"Outros",
  extra:modo==="FECEG"?Object.fromEntries(EXTRAS.filter(k=>k in r).map(k=>[k.charAt(0).toUpperCase()+k.slice(1),r[k]])):{}}}).filter(p=>p.id).map(p=>(p.o={id:p.id,titulo:p.titulo,autor1:p.autores.split("; ")[0]||"",situacao:p.situacao},p))}
-function prepararAval(rows){if(!rows.length)return[];const ks=Object.keys(rows[0]),f=fn=>ks.find(fn),kn=f(k=>k.includes("nome")),ki=f(k=>k.includes("institui")||k.includes("isntitui")),kc=f(k=>k.includes("empresa")),kd=f(k=>k.includes("dias")||k.includes("disponib")),ke=f(k=>k.includes("mail")),seen=new Set();
- return rows.map(r=>({nome:titleCase(r[kn]),inst:mapInst((ki&&String(r[ki]||"").trim())||(kc&&r[kc])||""),disp:String(r[kd]||""),email:r[ke]||""})).filter(a=>a.nome&&!seen.has(a.nome+a.inst)&&seen.add(a.nome+a.inst))}
+function prepararAval(rows){if(!rows.length)return[];const ks=Object.keys(rows[0]),f=fn=>ks.find(fn),kn=ks.find(k=>k.includes("nome completo"))||f(k=>k.includes("nome")),ki=f(k=>k.includes("institui")||k.includes("isntitui")),kc=f(k=>k.includes("empresa")),
+ kd=f(k=>k.includes("dias")||k.includes("disponib")||fold(k).includes("horario")),ke=f(k=>k.includes("mail")),kA=f(k=>fold(k).trim()==="aprovado"),kI=f(k=>k.includes("interesse")&&k.includes("pre")),kR=f(k=>fold(k).includes("areas")),seen=new Set();
+ // Aprovado: preenchido (ID do aprovado) = aprovado; interessepreselecaosemcitec = "sim" = quer fazer a pré-avaliação. Sem essas colunas (planilhas antigas/FECEG) todos valem.
+ const tem=v=>{const x=fold(v).trim();return x!==""&&!/^(nao|0|false|nan|null|-)$/.test(x)},sim=v=>/^(sim|s|1|true|x)$/.test(fold(v).trim());
+ return rows.map(r=>{const ap=kA?tem(r[kA]):true;return{nome:titleCase(r[kn]),inst:mapInst((ki&&String(r[ki]||"").trim())||(kc&&r[kc])||""),disp:String(r[kd]||""),email:r[ke]||"",areas:String(kR?r[kR]||"":""),aprov:ap,pre:ap&&(kI?sim(r[kI]):true)}}).filter(a=>a.nome&&!seen.has(a.nome+a.inst)&&seen.add(a.nome+a.inst))}
 function mapaRec(r){if(!r.length)return{};const ks=Object.keys(r[0]),ki=ks.find(k=>k.includes("id da submiss"))||ks.find(k=>/(^|\W)id(\W|$)/.test(k))||ks[0],kr=ks.find(k=>k.includes("recomend"))||ks.find(k=>k.includes("status"))||ks[1],m={};
  r.forEach(x=>{const i=String(x[ki]??"").trim();if(i)m[i]=String(x[kr]??"").trim()||"NÃO AVALIADO"});return m}
 
@@ -161,33 +165,55 @@ function relatorio(P,rec){const w=wb(),S=modo==="SEMCITEC",tem=S&&Object.keys(re
  const go={};det.forEach(d=>(go[d["Orientador"]]??=[]).push(d));
  w.add("Orientadores",Object.entries(go).sort((a,b)=>b[1].length-a[1].length).map(([o,l])=>({"Orientador":o,"Quantidade de Projetos":l.length})));w.add("Orientadores Detalhado",det);return w.o}
 
-function semcitec(P,A){const{porAval,salas}=CFG.SEMCITEC,w=wb(),avisos=[],dias=DIAS.filter(d=>A.some(a=>fold(a.disp).includes(fold(d))));
- if(!dias.length)avisos.push("Nenhum dia da semana foi encontrado na disponibilidade dos avaliadores.");
- w.add("Matriz Conflito",P.flatMap(p=>A.map(a=>({"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Instituição":p.inst,"Avaliador":a.nome,"Instituição Avaliador":a.inst,"Conflito":conf(p,a.inst)?"SIM":"NÃO"}))));
- w.add("Avaliadores por Dia",dias.flatMap(d=>A.filter(a=>fold(a.disp).includes(fold(d))).map(a=>({"Dia":d,"Avaliador":a.nome,"Instituição":a.inst,"Email":a.email,"Disponibilidade":a.disp}))));
+// ===== HORÁRIOS DOS AVALIADORES SEMCITEC: "20/10/2026 19:00-22:00 | 21/10/2026 19:00-22:00" (sem data, cai para o dia da semana, como antes) =====
+const pad2=n=>String(n).padStart(2,"0"),fmtH=(h,m)=>pad2(+h)+":"+pad2(+(m||0));
+function parseSlots(t){const s=String(t??""),out=[],seen=new Set(),add=x=>{if(!seen.has(x.label)){seen.add(x.label);out.push(x)}};
+ s.split(/[|;\n]/).forEach(part=>{const dm=part.match(/(\d{1,2})\/(\d{1,2})\/(\d{4}|\d{2})/);if(!dm)return;let d=+dm[1],m=+dm[2],y=+dm[3];if(y<100)y+=2000;const dt=new Date(y,m-1,d);if(dt.getMonth()!==m-1||dt.getDate()!==d)return;
+  const tm=part.slice(dm.index+dm[0].length).match(/(\d{1,2})\s*(?:[:h]\s*(\d{2}))?\s*(?:hs?)?\s*(?:-|–|—|às|as|a)\s*(\d{1,2})\s*(?:[:h]\s*(\d{2}))?/i),
+   hora=tm?fmtH(tm[1],tm[2])+"-"+fmtH(tm[3],tm[4]):"",data=`${pad2(d)}/${pad2(m)}/${y}`;
+  add({data,hora,label:data+(hora?" "+hora:""),wd:DIAS[(dt.getDay()+6)%7],ord:dt.getTime()+(tm?(+tm[1]*60+(+tm[2]||0))*6e4:0)})});
+ if(!out.length){const f=fold(s);DIAS.forEach((d,i)=>{if(f.includes(fold(d)))add({data:"",hora:"",label:d,wd:d,ord:1e15+i})})}
+ return out}
+const abaSlot=x=>x.data?x.data.replace(/\//g,"-")+(x.hora?" "+x.hora.split("-").map(t=>t.replace(/^0/,"").replace(":00","h").replace(":","h")).join("-"):""):x.wd;
+
+// P = projetos Aprovados (distribuídos por data/horário); PRE = projetos em Avaliação (pré-avaliação, sem limite de vagas)
+function semcitec(P,A,PRE=[]){const{porAval,avalSala,salas}=CFG.SEMCITEC,w=wb(),avisos=[],AP=A.filter(a=>a.aprov),AV=A.filter(a=>a.aprov&&a.pre);
+ AP.forEach(a=>a.sl=parseSlots(a.disp));
+ const slots=[...new Map(AP.flatMap(a=>a.sl).map(x=>[x.label,x])).values()].sort((x,y)=>x.ord-y.ord),tem=(a,x)=>a.sl.some(y=>y.label===x.label);
+ if(P.length&&!slots.length)avisos.push("Nenhuma data/horário de disponibilidade foi encontrado entre os avaliadores aprovados.");
+ const sh=AP.filter(a=>!a.sl.length).length;if(P.length&&sh)avisos.push(`${sh} avaliador(es) aprovado(s) sem data/horário de disponibilidade ficaram fora da distribuição por data.`);
+ // Pré-avaliação: todos os projetos em Avaliação, avaliadores aprovados com interesse na pré-avaliação, equilibrando a carga e evitando conflito de instituição
  const carga=new Map(),pre={};
- P.forEach(p=>{const c=A.filter(a=>!conf(p,a.inst)&&(carga.get(a.nome)||0)<porAval).sort((x,y)=>(carga.get(x.nome)||0)-(carga.get(y.nome)||0))[0];if(c){pre[p.id]=c.nome;carga.set(c.nome,(carga.get(c.nome)||0)+1)}});
- w.add("Pré-Avaliação",P.map(p=>({"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,"Avaliador Pré-Avaliação":pre[p.id]||"NÃO ALOCADO"})));
- const aloc=new Set(),diaDe={};
- dias.forEach(d=>{const disp=A.filter(a=>fold(a.disp).includes(fold(d))),seg=d===DIAS[0],cap=[DIAS[1],DIAS[2],DIAS[3]].includes(d)?7:10,S={};
+ PRE.forEach(p=>{const c=AV.filter(a=>!conf(p,a.inst)&&(carga.get(a.nome)||0)<porAval).sort((x,y)=>(carga.get(x.nome)||0)-(carga.get(y.nome)||0))[0];if(c){pre[p.id]=c;carga.set(c.nome,(carga.get(c.nome)||0)+1)}});
+ const sp=PRE.filter(p=>!pre[p.id]).length;
+ w.add("Pré-Avaliação",PRE.map(p=>({"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,"Situação":p.situacao,"Avaliador Pré-Avaliação":pre[p.id]?pre[p.id].nome:"NÃO ALOCADO","E-mail Avaliador":pre[p.id]?pre[p.id].email:""})));
+ if(PRE.length)w.add("Carga Pré-Avaliação",AV.map(a=>({"Avaliador":a.nome,"Instituição":a.inst,"Email":a.email,"Áreas":a.areas,"Projetos Pré-Avaliação":carga.get(a.nome)||0})));
+ w.add("Avaliadores por Horário",slots.flatMap(x=>AP.filter(a=>tem(a,x)).map(a=>({"Data":x.data,"Dia":x.wd,"Horário":x.hora,"Avaliador":a.nome,"Instituição":a.inst,"Áreas":a.areas,"Email":a.email,"Disponibilidade":a.disp}))));
+ // Aprovados: uma aba por data/horário, com salas, avaliadores disponíveis naquele horário e projetos
+ const aloc=new Set(),loc={};
+ if(P.length)slots.forEach(x=>{const disp=AP.filter(a=>tem(a,x)),seg=x.wd===DIAS[0],cap=[DIAS[1],DIAS[2],DIAS[3]].includes(x.wd)?7:10,S={};
   salas.forEach(s=>S[s]={av:[],ins:new Set(),pr:[]});
-  disp.forEach(a=>{for(const s of(seg?[salas[0]]:salas)){const x=S[s];if(x.av.length<(seg?6:3)&&(a.inst.startsWith("Outros/Sem")||!x.ins.has(a.inst))){x.av.push(a);x.ins.add(a.inst);break}}});
+  disp.forEach(a=>{for(const s of(seg?[salas[0]]:salas)){const y=S[s];if(y.av.length<(seg?6:avalSala)&&(a.inst.startsWith("Outros/Sem")||!y.ins.has(a.inst))){y.av.push(a);y.ins.add(a.inst);break}}});
+  const colocados=salas.reduce((n,s)=>n+S[s].av.length,0);if(disp.length>colocados)avisos.push(`${x.label}: ${disp.length-colocados} avaliador(es) disponível(is) não couberam nas salas (limite de ${seg?6:avalSala} por sala, sem repetir instituição na mesma sala).`);
   const pend=P.filter(p=>!aloc.has(p.id)),rel=pend.filter(p=>p.tipo==="Relato"),pes=pend.filter(p=>p.tipo!=="Relato");
-  const ok=(p,x)=>![...x.ins].some(i=>conf(p,i)),put=(p,s,c)=>{S[s].pr.push(c?{...p,conflito:true}:p);aloc.add(p.id);diaDe[p.id]=d};
-  if(seg){const x=S[salas[0]];if(x.av.length){[...rel.filter(p=>ok(p,x)),...rel.filter(p=>!ok(p,x))].slice(0,5).forEach(p=>put(p,salas[0],!ok(p,x)));pes.filter(p=>ok(p,x)).slice(0,cap-x.pr.length).forEach(p=>put(p,salas[0]))}}
-  else{const x4=S[salas[3]];if(x4.av.length)rel.filter(p=>ok(p,x4)).slice(0,cap).forEach(p=>put(p,salas[3]));
+  const ok=(p,y)=>![...y.ins].some(i=>conf(p,i)),put=(p,s,c)=>{S[s].pr.push(c?{...p,conflito:true}:p);aloc.add(p.id);loc[p.id]={x,sala:s,S:S[s]}};
+  if(seg){const y=S[salas[0]];if(y.av.length){[...rel.filter(p=>ok(p,y)),...rel.filter(p=>!ok(p,y))].slice(0,5).forEach(p=>put(p,salas[0],!ok(p,y)));pes.filter(p=>ok(p,y)).slice(0,cap-y.pr.length).forEach(p=>put(p,salas[0]))}}
+  else{const y4=S[salas[3]];if(y4.av.length)rel.filter(p=>ok(p,y4)).slice(0,cap).forEach(p=>put(p,salas[3]));
    const g=salas.slice(0,3).filter(s=>S[s].av.length);if(g.length){let k=0;pes.forEach(p=>{for(let t=0;t<g.length;t++){const s=g[k++%g.length];if(S[s].pr.length<cap&&ok(p,S[s])){put(p,s);break}}})}}
-  const rows=[];(seg?[salas[0]]:salas).forEach(s=>{const x=S[s];
-   rows.push({"Sala":s,"Tipo":"AVALIADORES","Detalhe":x.av.length?x.av.map(a=>`${a.nome} (${a.inst})`).join("; "):"NENHUM AVALIADOR ALOCADO"});
-   if(x.pr.length)x.pr.forEach(p=>rows.push({"Sala":s,"Tipo":"PROJETO","Título do Projeto":p.titulo+(p.conflito?" (CONFLITO)":""),"Categoria":p.cat,"Autores":p.autores,"Instituição (Projeto)":p.inst}));
-   else rows.push({"Sala":s,"Tipo":"PROJETO","Detalhe":"NENHUM PROJETO"});rows.push({})});
-  w.add(d,rows)});
+  const dh={"Data":x.data,"Dia":x.wd,"Horário":x.hora},rows=[];(seg?[salas[0]]:salas).forEach(s=>{const y=S[s];
+   rows.push({...dh,"Sala":s,"Tipo":"AVALIADORES","Detalhe":y.av.length?y.av.map(a=>`${a.nome} (${a.inst})`).join("; "):"NENHUM AVALIADOR ALOCADO"});
+   if(y.pr.length)y.pr.forEach(p=>rows.push({...dh,"Sala":s,"Tipo":"PROJETO","ID Projeto":p.id,"Título do Projeto":p.titulo+(p.conflito?" (CONFLITO)":""),"Categoria":p.cat,"Autores":p.autores,"Instituição (Projeto)":p.inst}));
+   else rows.push({...dh,"Sala":s,"Tipo":"PROJETO","Detalhe":"NENHUM PROJETO"});rows.push({})});
+  w.add(abaSlot(x),rows)});
  const nd=P.filter(p=>!aloc.has(p.id));
- w.add("Projetos Não Distribuídos",nd.map(p=>({"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,"Tipo":p.tipo,"Motivo":"Não alocado em nenhum dia"})));
- w.add("Resumo Completo",P.map(p=>({"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,"Avaliador Pré-Avaliação":pre[p.id]||"NÃO ALOCADO","Dia Distribuição":diaDe[p.id]||"NÃO DISTRIBUÍDO","Status":pre[p.id]&&diaDe[p.id]?"COMPLETO":"PENDENTE"})));
- const sp=P.filter(p=>!pre[p.id]).length;if(sp)avisos.push(`${sp} projeto(s) sem avaliador de pré-avaliação (limite de ${porAval} por avaliador ou conflito de instituição).`);
- if(nd.length)avisos.push(`${nd.length} projeto(s) não foram distribuídos em nenhum dia.`);
- return{w:w.o,avisos,stats:{"Projetos":P.length,"Avaliadores":A.length,"Distribuídos":aloc.size,"Não distribuídos":nd.length}}}
+ w.add("Projetos Não Distribuídos",nd.map(p=>({"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,"Tipo":p.tipo,"Motivo":"Não alocado em nenhuma data/horário"})));
+ w.add("Resumo Completo",P.map(p=>{const l=loc[p.id];return{"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,"Data":l?l.x.data:"","Dia":l?l.x.wd:"","Horário":l?l.x.hora:"","Sala":l?l.sala:"","Avaliadores da Sala":l?l.S.av.map(a=>a.nome).join("; "):"","Status":l?(l.S.av.length?"DISTRIBUÍDO":"SEM AVALIADOR"):"NÃO DISTRIBUÍDO"}}));
+ const mc=(L,B)=>L.flatMap(p=>B.map(a=>({"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Instituição":p.inst,"Avaliador":a.nome,"Instituição Avaliador":a.inst,"Conflito":conf(p,a.inst)?"SIM":"NÃO"})));
+ w.add("Matriz Conflito Pré",mc(PRE,AV));w.add("Matriz Conflito Aprovados",mc(P,AP));
+ if(PRE.length&&!AV.length)avisos.push("Nenhum avaliador aprovado com interesse na pré-avaliação (colunas Aprovado e interessepreselecaosemcitec).");
+ else if(sp)avisos.push(`${sp} projeto(s) em avaliação sem avaliador de pré-avaliação (${AV.length} avaliadores × ${porAval} = ${AV.length*porAval} vagas, ou conflito de instituição).`);
+ if(nd.length)avisos.push(`${nd.length} projeto(s) aprovado(s) não foram distribuídos em nenhuma data/horário.`);
+ return{w:w.o,avisos,stats:{"Em avaliação (pré)":PRE.length,"Com avaliador (pré)":PRE.length-sp,"Pré-avaliadores":AV.length,"Aprovados":P.length,"Distribuídos":aloc.size,"Não distribuídos":nd.length,"Avaliadores aprovados":AP.length,"Datas/horários":slots.length}}}
 
 function turnos(d){const{dataOnline}=CFG.FECEG,s=String(d||""),out=[];if(/online/i.test(s)||s.includes(dataOnline))out.push("online");
  s.split(/[,;\n]/).forEach(t=>{const m=t.match(/(\d{2}\/\d{2}\/\d{2,4}).*?(\d{1,2})\s*h/i);if(m&&!/online/i.test(t)&&!t.includes(dataOnline)){const k=`${m[1]}_${+m[2]<12?"manhã":"tarde"}`;if(!out.includes(k))out.push(k)}});return out}
@@ -255,8 +281,9 @@ const DS={
   val:(r,k)=>isO(k)?r.orients[+k.slice(1)]||"":r[k],
   set(r,k,v){if(isO(k)){const i=+k.slice(1);while(r.orients.length<=i)r.orients.push("");const ps=splitOrient(v);if(ps.length){r.orients.splice(i,1,...ps);if(ps.length>1)r.orients=uniq(r.orients)}else r.orients[i]=v;r.orient=r.orients.filter(Boolean).join("; ");return}
    if(k==="inst"){v=mapInst(v);r.insts.delete(r.inst);r.insts.add(v)}if(k==="cat")r.tipo=tipoDe(v);r[k]=v}},
- a:{rows:()=>A,cols:[["nome","Nome"],["inst","Instituição"],["disp","Disponibilidade"],["email","E-mail"]],
-  set(r,k,v){if(k==="nome")v=titleCase(v);if(k==="inst")v=mapInst(v);r[k]=v}}};
+ a:{rows:()=>A,get cols(){return modo==="SEMCITEC"?[["nome","Nome"],["inst","Instituição"],["aprov","Aprovado"],["pre","Pré-avaliação"],["disp","Horários (data hora-hora | ...)"],["areas","Áreas de conhecimento"],["email","E-mail"]]:[["nome","Nome"],["inst","Instituição"],["disp","Disponibilidade"],["email","E-mail"]]},
+  val:(r,k)=>k==="aprov"||k==="pre"?(r[k]?"Sim":"Não"):r[k]??"",
+  set(r,k,v){if(k==="nome")v=titleCase(v);if(k==="inst")v=mapInst(v);if(k==="aprov"||k==="pre")v=/^(sim|s|1|true|x)$/.test(fold(v).trim());r[k]=v}}};
 DS.x={rows:()=>O,get cols(){return colsProj(O)},val:DS.p.val,set:DS.p.set};
 function draw(t){const d=DS[t],rows=d.rows(),cols=d.cols;
  $("g"+t).innerHTML=rows.length?`<table><tr><th>#</th>${cols.map(([k,n])=>`<th>${n}<input class="cf" data-k="${k}" value="${esc(F[t][k]||"")}" placeholder="filtrar" aria-label="Filtrar ${n}"></th>`).join("")}<th></th></tr>`+rows.map((r,i)=>`<tr data-i="${i}"><td>${i+1}</td>${cols.map(([k])=>k==="situacao"&&isProj(t)?`<td>${selSit(r.situacao)}</td>`:`<td contenteditable="true" data-k="${k}">${esc(V(d,r,k))}</td>`).join("")}<td><button class="x" data-del="1" title="Excluir linha">✕</button></td></tr>`).join("")+"</table>":'<p style="padding:10px;color:var(--mut)">Nenhum dado carregado.</p>';
@@ -358,21 +385,28 @@ async function lerProj(){const n=++sq.p,l=LINKS_SALVOS[modo].lp;PROJ_OK=false;P=
  catch(e){if(n===sq.p)st("Erro: "+e.message,"er")}}
 async function lerAval(){const n=++sq.a,l=$("la").value.trim();if(!l)return st("Cole o link da planilha de avaliadores.","er");
  st("Carregando avaliadores...");
- try{const rows=await lerCsv(l);if(n!==sq.a)return;A=prepararAval(rows);draw("a");st(`${A.length} avaliadores carregados.`,"ok")}
+ try{const rows=await lerCsv(l);if(n!==sq.a)return;A=prepararAval(rows);draw("a");st(`${A.length} avaliadores carregados`+(modo==="SEMCITEC"?` (${A.filter(a=>a.aprov).length} aprovados, ${A.filter(a=>a.pre).length} para a pré-avaliação).`:"."),"ok")}
  catch(e){if(n===sq.a)st("Erro: "+e.message,"er")}}
 async function gerar(){try{if(!P.length)return st("Nenhum projeto carregado.","er");
  if(NG&&dupVisto!==NG){dupVisto=NG;refDup();aba("D");$("sD").scrollIntoView({behavior:"smooth",block:"start"});return st(`Há ${NG} grupo(s) de cadastros repetidos. Revise na aba Duplicados (exclua com ✕ o que não deve entrar) e clique em "Gerar assim mesmo" para continuar.`,"er")}
- const{sel,fila}=calcSel();if(!sel.length)return st("Nenhum projeto dentro do limite de "+limAtual()+" para gerar.","er");
- const lr=$("lr").value.trim();st("Gerando...");const rec=modo==="SEMCITEC"&&lr?mapaRec(await lerCsv(lr)):{};
- res={"Relatório de Inscrições SDC":relatorio(sel,rec)};let d=null;
- if(A.length){d=modo==="SEMCITEC"?semcitec(sel,A):feceg(sel,A,+$("pa").value||5);if(fila.length)d.avisos.unshift(`${fila.length} projeto(s) excedente(s) do limite de ${limAtual()} ficaram na fila de espera e não entraram nos arquivos.`);res["Distribuição "+modo]=d.w}
+ const{sel,fila}=calcSel(),S=modo==="SEMCITEC",pre=S?P.filter(p=>etapaDe(p.situacao)===1).sort(cmpId):[];
+ if(!sel.length&&!pre.length)return st(S?"Nenhum projeto Aprovado (dentro do limite de "+limAtual()+") nem em Avaliação para gerar.":"Nenhum projeto dentro do limite de "+limAtual()+" para gerar.","er");
+ if(!sel.length&&!A.length)return st("Carregue os avaliadores para gerar a pré-avaliação.","er");
+ const lr=$("lr").value.trim();st("Gerando...");const rec=S&&lr?mapaRec(await lerCsv(lr)):{};
+ res={};if(sel.length)res["Relatório de Inscrições SDC"]=relatorio(sel,rec);let d=null;
+ if(A.length){d=S?semcitec(sel,A,pre):feceg(sel,A,+$("pa").value||5);if(fila.length)d.avisos.unshift(`${fila.length} projeto(s) excedente(s) do limite de ${limAtual()} ficaram na fila de espera e não entraram nos arquivos.`);res["Distribuição "+modo]=d.w}
  render(d);st((A.length?"Pronto. Edite as abas se precisar e baixe os arquivos.":"Relatório gerado. Sem avaliadores, a distribuição foi ignorada.")+(fila.length?` ${fila.length} excedente(s) ficaram de fora (fila de espera).`:""),"ok")}
  catch(e){st("Erro: "+e.message,"er")}}
-function carregar(){const l={...LINKS_SALVOS[modo]};try{Object.assign(l,JSON.parse(localStorage.getItem("sdcv_"+modo))||{})}catch(e){}$("la").value=l.la||"";$("lr").value=l.lr||""}
+function carregar(){const l={...LINKS_SALVOS[modo]},fixo=modo==="SEMCITEC";try{const sv=JSON.parse(localStorage.getItem("sdcv_"+modo))||{};if(fixo)delete sv.la;Object.assign(l,sv)}catch(e){}$("la").value=l.la||"";$("lr").value=l.lr||"";$("la").readOnly=fixo;$("laN").textContent=fixo?"Planilha fixa dos avaliadores da SEMCITEC (não editável). Para usar outra, carregue um arquivo abaixo.":""}
 function setModo(m){modo=m;PROJ_OK=false;clearTimeout(filaT);P=[];O=[];FILA=[];SELP=[];$("lim").value=LIMITES[m];$("qf").value=$("qs").value="";$("mS").className=m==="SEMCITEC"?"on":"";$("mF").className=m==="FECEG"?"on":"";$("bR").className=m==="SEMCITEC"?"":"hid";$("bF").className=m==="FECEG"?"":"hid";
  $("out").innerHTML="";res={};A=[];$("bY").className=syncOn()?"":"hid";ss(syncOn()?"Sincronização com a planilha oficial ativa.":"","ok");$("qp").value=$("qa").value=$("qx").value="";F.p={};F.x={};F.a={};F.d={};dupVisto=0;aba("P");draw("a");carregar();lerProj();if($("la").value.trim())lerAval()}
 $("bre").onclick=()=>{enviar();agendarFila()};$("tF").onclick=()=>aba("F");$("tS").onclick=()=>aba("S");$("qs").oninput=drawSel;$("qf").oninput=drawFila;$("sy").onchange=agendarFila;$("mS").onclick=()=>setModo("SEMCITEC");$("mF").onclick=()=>setModo("FECEG");$("bg").onclick=gerar;$("bl").onclick=lerProj;$("bca").onclick=lerAval;
-$("bad").onclick=()=>{A.push({nome:"Novo avaliador",inst:"Outros/Sem Instituição",disp:"",email:""});$("qa").value="";draw("a");$("ga").scrollTop=1e9};
+$("fa").onchange=async e=>{const f=e.target.files[0];if(!f)return;const n=++sq.a;st("Lendo arquivo...");
+ try{let rows;if(/\.csv$/i.test(f.name))rows=Papa.parse(await f.text(),{header:true,skipEmptyLines:true,transformHeader:h=>h.trim().toLowerCase()}).data;
+  else{const b=XLSX.read(await f.arrayBuffer(),{type:"array"});rows=XLSX.utils.sheet_to_json(b.Sheets[b.SheetNames[0]],{defval:""}).map(r=>Object.fromEntries(Object.entries(r).map(([k,v])=>[k.trim().toLowerCase(),v])))}
+  if(n!==sq.a)return;A=prepararAval(rows);draw("a");st(`${A.length} avaliadores carregados do arquivo "${f.name}"`+(modo==="SEMCITEC"?` (${A.filter(a=>a.aprov).length} aprovados, ${A.filter(a=>a.pre).length} para a pré-avaliação).`:"."),"ok")}
+ catch(err){st("Erro ao ler o arquivo: "+err.message,"er")}e.target.value=""};
+$("bad").onclick=()=>{A.push({nome:"Novo avaliador",inst:"Outros/Sem Instituição",disp:"",email:"",areas:"",aprov:true,pre:true});$("qa").value="";draw("a");$("ga").scrollTop=1e9};
 $("qp").oninput=()=>draw("p");$("qa").oninput=()=>draw("a");$("tP").onclick=()=>aba("P");$("tX").onclick=()=>aba("X");$("qx").oninput=()=>draw("x");$("tA").onclick=()=>aba("A");$("tD").onclick=()=>aba("D");
 $("gd").onclick=e=>{const b=e.target.closest("[data-del]");if(!b)return;const x=DUP[+b.closest("tr").dataset.d],a=DS[x.t].rows(),i=a.indexOf(x.r);if(i>=0){a.splice(i,1);if(x.t==="p")excluir(x.r)}draw("p");draw("a")};
 ["p","x","a"].forEach(bindGrid);
