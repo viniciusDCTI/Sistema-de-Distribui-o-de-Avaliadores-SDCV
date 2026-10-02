@@ -186,7 +186,7 @@ function semcitec(P,A,PRE=[]){const{porAval,avalSala,salas}=CFG.SEMCITEC,w=wb(),
  const carga=new Map(),pre={};
  PRE.forEach(p=>{const c=AV.filter(a=>!conf(p,a.inst)&&(carga.get(a.nome)||0)<porAval).sort((x,y)=>(carga.get(x.nome)||0)-(carga.get(y.nome)||0))[0];if(c){pre[p.id]=c;carga.set(c.nome,(carga.get(c.nome)||0)+1)}});
  const sp=PRE.filter(p=>!pre[p.id]).length;
- w.add("Pré-Avaliação",PRE.map(p=>({"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,"Situação":p.situacao,"Avaliador Pré-Avaliação":pre[p.id]?pre[p.id].nome:"NÃO ALOCADO","E-mail Avaliador":pre[p.id]?pre[p.id].email:""})));
+ w.add("Pré-Avaliação",PRE.map(p=>({"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,"Situação":p.situacao,"Avaliador Pré-Avaliação":pre[p.id]?pre[p.id].nome:"NÃO ALOCADO","Instituição Avaliador":pre[p.id]?pre[p.id].inst:"","E-mail Avaliador":pre[p.id]?pre[p.id].email:""})));
  if(PRE.length)w.add("Carga Pré-Avaliação",AV.map(a=>({"Avaliador":a.nome,"Instituição":a.inst,"Email":a.email,"Áreas":a.areas,"Projetos Pré-Avaliação":carga.get(a.nome)||0})));
  w.add("Avaliadores por Horário",slots.flatMap(x=>AP.filter(a=>tem(a,x)).map(a=>({"Data":x.data,"Dia":x.wd,"Horário":x.hora,"Avaliador":a.nome,"Instituição":a.inst,"Áreas":a.areas,"Email":a.email,"Disponibilidade":a.disp}))));
  // Aprovados: uma aba por data/horário, com salas, avaliadores disponíveis naquele horário e projetos
@@ -201,13 +201,13 @@ function semcitec(P,A,PRE=[]){const{porAval,avalSala,salas}=CFG.SEMCITEC,w=wb(),
   else{const y4=S[salas[3]];if(y4.av.length)rel.filter(p=>ok(p,y4)).slice(0,cap).forEach(p=>put(p,salas[3]));
    const g=salas.slice(0,3).filter(s=>S[s].av.length);if(g.length){let k=0;pes.forEach(p=>{for(let t=0;t<g.length;t++){const s=g[k++%g.length];if(S[s].pr.length<cap&&ok(p,S[s])){put(p,s);break}}})}}
   const dh={"Data":x.data,"Dia":x.wd,"Horário":x.hora},rows=[];(seg?[salas[0]]:salas).forEach(s=>{const y=S[s];
-   rows.push({...dh,"Sala":s,"Tipo":"AVALIADORES","Detalhe":y.av.length?y.av.map(a=>`${a.nome} (${a.inst})`).join("; "):"NENHUM AVALIADOR ALOCADO"});
+   if(y.av.length)y.av.forEach(a=>rows.push({...dh,"Sala":s,"Tipo":"AVALIADOR","Avaliador":a.nome,"Instituição Avaliador":a.inst,"E-mail Avaliador":a.email}));else rows.push({...dh,"Sala":s,"Tipo":"AVALIADOR","Detalhe":"NENHUM AVALIADOR ALOCADO"});
    if(y.pr.length)y.pr.forEach(p=>rows.push({...dh,"Sala":s,"Tipo":"PROJETO","ID Projeto":p.id,"Título do Projeto":p.titulo+(p.conflito?" (CONFLITO)":""),"Categoria":p.cat,"Autores":p.autores,"Instituição (Projeto)":p.inst}));
    else rows.push({...dh,"Sala":s,"Tipo":"PROJETO","Detalhe":"NENHUM PROJETO"});rows.push({})});
   w.add(abaSlot(x),rows)});
  const nd=P.filter(p=>!aloc.has(p.id));
  w.add("Projetos Não Distribuídos",nd.map(p=>({"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,"Tipo":p.tipo,"Motivo":"Não alocado em nenhuma data/horário"})));
- w.add("Resumo Completo",P.map(p=>{const l=loc[p.id];return{"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,"Data":l?l.x.data:"","Dia":l?l.x.wd:"","Horário":l?l.x.hora:"","Sala":l?l.sala:"","Avaliadores da Sala":l?l.S.av.map(a=>a.nome).join("; "):"","Status":l?(l.S.av.length?"DISTRIBUÍDO":"SEM AVALIADOR"):"NÃO DISTRIBUÍDO"}}));
+ w.add("Resumo Completo",P.map(p=>{const l=loc[p.id];return{"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,"Data":l?l.x.data:"","Dia":l?l.x.wd:"","Horário":l?l.x.hora:"","Sala":l?l.sala:"","Avaliadores da Sala":l?l.S.av.map(a=>a.nome).join("; "):"","Instituições dos Avaliadores":l?l.S.av.map(a=>a.inst).join("; "):"","Status":l?(l.S.av.length?"DISTRIBUÍDO":"SEM AVALIADOR"):"NÃO DISTRIBUÍDO"}}));
  const mc=(L,B)=>L.flatMap(p=>B.map(a=>({"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Instituição":p.inst,"Avaliador":a.nome,"Instituição Avaliador":a.inst,"Conflito":conf(p,a.inst)?"SIM":"NÃO"})));
  w.add("Matriz Conflito Pré",mc(PRE,AV));w.add("Matriz Conflito Aprovados",mc(P,AP));
  if(PRE.length&&!AV.length)avisos.push("Nenhum avaliador aprovado com interesse na pré-avaliação (colunas Aprovado e interessepreselecaosemcitec).");
