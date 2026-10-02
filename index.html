@@ -84,7 +84,7 @@ const LINKS_SALVOS={SEMCITEC:{lp:"https://docs.google.com/spreadsheets/d/1ISTv8U
 // Cole aqui a URL (/exec) do Apps Script (arquivo Code.gs) e o mesmo TOKEN definido nele. Vazio = sincronização desligada.
 const SYNC={SEMCITEC:{url:"https://script.google.com/macros/s/AKfycbyPTM0pjvoZyYHS0Rrp8aOB3-2ZLqur85wfBPslUvFjQXW4Mjw0g-fLdZCuSptxxwASdQ/exec",token:"Alice01@"},FECEG:{url:"https://script.google.com/macros/s/AKfycbwQrdTcmuw3Avv1IRVdNgc_LzIa4zQ5JNMglyQmK43Zdjn7Q7H7-4YqvlcuwKpSQRSa/exec",token:"Alice01@"}};
 const CFG={SEMCITEC:{porAval:10,salas:["Sala 1","Sala 2","Sala 3","Sala 4"]},FECEG:{dataOnline:"13/10",porTurno:50}};
-const LIMITES={SEMCITEC:12,FECEG:216},ABA_FILA="Fila de espera";
+const LIMITES={SEMCITEC:120,FECEG:216},ABA_FILA="Fila de espera";
 const DIAS=["Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado","Domingo"];
 const EXTRAS=["verificação","telefone (autor 1)","telefone (autor 2)","telefone (autor 3)","e-mail orientadores(as)"];
 const INST={"UNIFESP":["unifesp","universidade federal de sao paulo"],"USP":["usp","universidade de sao paulo"],"UFABC":["ufabc","universidade federal do abc"],"UFRJ":["ufrj"],"UFPE":["ufpe"],"UFRN":["universidade federal do rio grande do norte"],"UNESP":["unesp"],
@@ -270,9 +270,11 @@ function cotas(ns,lim){const tot=ns.reduce((a,b)=>a+b,0);if(tot<=lim)return{teto
  ns.map((n,i)=>i).filter(i=>ns[i]>lo).sort((a,b)=>ns[b]-ns[a]).forEach(i=>{if(sobra>0){v[i]++;sobra--}});return{teto:lo,vagas:v,cabe:false}}
 const limAtual=()=>{const v=parseInt($("lim").value);return isNaN(v)?LIMITES[modo]:Math.max(0,v)};
 // Seleção: aplica o limite por instituição (cotas) e separa, na ordem da planilha, os projetos aceitos (sel) dos excedentes (fila).
-function calcSel(){const n=new Map();P.forEach(p=>n.set(p.inst,(n.get(p.inst)||0)+1));
+// Elegibilidade para "Projetos aprovados": SEMCITEC = situação Aprovado; FECEG = verificação OK. Os demais ficam só em "Projetos geral".
+const elegivel=p=>{if(modo==="SEMCITEC")return etapaDe(p.situacao)===2;const k=Object.keys(p.extra||{}).find(k=>fold(k).includes("verific"));return!!k&&fold(p.extra[k]).trim()==="ok"};
+function calcSel(){const EL=P.filter(elegivel),n=new Map();EL.forEach(p=>n.set(p.inst,(n.get(p.inst)||0)+1));
  const ks=[...n.keys()].sort((a,b)=>n.get(b)-n.get(a)||a.localeCompare(b)),q=cotas(ks.map(k=>n.get(k)),limAtual()),vg=new Map(ks.map((k,i)=>[k,q.vagas[i]])),usados=new Map(),sel=[],fila=[];
- P.forEach(p=>{const u=usados.get(p.inst)||0;if(u<vg.get(p.inst)){usados.set(p.inst,u+1);sel.push(p)}else fila.push(p)});return{sel,fila,vg,q}}
+ EL.forEach(p=>{const u=usados.get(p.inst)||0;if(u<vg.get(p.inst)){usados.set(p.inst,u+1);sel.push(p)}else fila.push(p)});return{sel,fila,vg,q}}
 function drawFila(){const{vg}=calcSel(),q=fold($("qf").value.trim()),mt=p=>`Limite de ${vg.get(p.inst)||0} projeto(s) para ${p.inst} atingido`,
  L=FILA.map((p,i)=>[p,i+1]).filter(([p,k])=>!q||fold([k,p.id,p.titulo,p.situacao,p.cat,p.autores,p.inst].join(" ")).includes(q));
  $("nf").textContent=`(${L.length===FILA.length?FILA.length:L.length+" de "+FILA.length})`;$("tF").textContent=`Fila de espera (${FILA.length})`;
