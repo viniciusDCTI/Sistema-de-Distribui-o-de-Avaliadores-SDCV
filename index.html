@@ -68,7 +68,7 @@ details.hint{margin:4px 0 8px}details.hint summary{cursor:pointer;color:var(--ac
 <details open><summary>Análise</summary><button class="nav" id="tI">Instituições</button><button class="nav" id="tD">Duplicados (0)</button></details>
 <details open><summary>Resultado</summary><button class="nav" id="tR">Distribuição</button></details>
 <details open><summary>Sistema</summary><button class="nav" id="tC">Configurações</button></details>
-</aside><main><div id="top" style="display:flex;gap:12px;align-items:center"><div id="st" style="flex:1">Carregando...</div><span id="saveInd" style="white-space:nowrap;font-weight:700"></span></div>
+</aside><main><div id="top" style="display:flex;gap:12px;align-items:center"><div id="st" style="flex:1">Carregando...</div><span id="autoInd" style="white-space:nowrap;font-size:.8rem;color:var(--mut);cursor:pointer" title="Clique para pausar/retomar"></span><button id="autoNow" title="Atualizar agora" aria-label="Atualizar agora" style="padding:2px 9px">↻</button><span id="saveInd" style="white-space:nowrap;font-weight:700"></span></div>
 <section class="card" id="sP"><h2>Projetos geral <span class="mut" id="np"></span></h2>
 <details class="hint"><summary>ℹ Como funciona</summary><p class="mut">Carregados automaticamente da planilha do núcleo. Mostra projetos em Submissão, Avaliação e Aprovado (os demais ficam na aba "Outras situações"). Clique em uma célula para editar, troque a etapa na coluna Situação; ✕ exclui a linha. Com a sincronização ligada, tudo é enviado à planilha oficial.</p></details>
 <div class="bar"><input id="qp" placeholder="Buscar projeto..." aria-label="Buscar projeto"><button id="bl">Recarregar do Drive</button></div>
@@ -114,7 +114,7 @@ details.hint{margin:4px 0 8px}details.hint summary{cursor:pointer;color:var(--ac
 <details class="hint"><summary>ℹ Como funciona</summary><p class="mut">Cada coluna é um avaliador da FECEG. Dentro dela aparecem os turnos presenciais e os projetos que ele avalia em cada um. Cada projeto deve ter 3 avaliadores presenciais: o indicador n/3 mostra quantos ele tem de fato e fica em vermelho quando falta alguém. A coluna de projetos com menos de 3 avaliadores fica minimizada por padrão. O botão 📸 em cada avaliador captura todos os projetos daquele avaliador e tenta compartilhar a imagem pelo WhatsApp; se o navegador não permitir compartilhamento direto, a imagem é copiada para a área de transferência e o WhatsApp é aberto para você colar, ou o PNG é baixado como alternativa. Esta aba acompanha a distribuição automaticamente; para mover um projeto de turno, use a aba Grade de horários.</p></details>
 <div class="bar"><input id="qv" placeholder="Buscar avaliador ou projeto..." aria-label="Buscar avaliador ou projeto"><span id="vs" class="mut"></span></div><div id="vMoveBar" class="bar" hidden><input id="vmp" list="vdlp" placeholder="Projeto (nome ou ID)"><datalist id="vdlp"></datalist><select id="vmd"></select><button id="vmb" class="p">Aplicar movimento</button><button id="vmc">Limpar</button></div>
 <div id="vg"></div></section>
-<section class="card hid" id="sC"><h2>Configurações</h2><div class="row" style="margin:0 0 10px"><button id="bPing">Testar conexão com os scripts</button></div><div id="cfgBody"></div><div class="mailbox"><h3 style="margin:0 0 4px">Modelos de e-mail</h3><div class="mut">Salvos automaticamente na planilha. O modelo OK preenche dia e horário da apresentação.</div><div class="mailgrid"><div class="mailcard"><b>OK</b><label>Assunto<input id="mailOkSub"></label><label>Corpo<textarea id="mailOkBody"></textarea></label></div><div class="mailcard"><b>Recusado</b><label>Assunto<input id="mailRecSub"></label><label>Corpo<textarea id="mailRecBody"></textarea></label></div></div><button id="mailSave" class="p" style="margin-top:8px">Salvar modelos</button><span id="mailSt" class="mut" style="margin-left:8px"></span></div>
+<section class="card hid" id="sC"><h2>Configurações</h2><div class="row" style="margin:0 0 10px"><button id="bPing">Testar conexão com os scripts</button></div><div id="cfgBody"></div><div class="mailbox"><h3 style="margin:0 0 4px">Modelos de e-mail</h3><div class="mut">Salvos automaticamente na aba "Modelos de e-mail" da planilha de avaliadores (e lidos de lá a cada 10 s). O modelo OK preenche dia e horário da apresentação.</div><div class="mailgrid"><div class="mailcard"><b>OK</b><label>Assunto<input id="mailOkSub"></label><label>Corpo<textarea id="mailOkBody"></textarea></label></div><div class="mailcard"><b>Recusado</b><label>Assunto<input id="mailRecSub"></label><label>Corpo<textarea id="mailRecBody"></textarea></label></div></div><button id="mailSave" class="p" style="margin-top:8px">Salvar modelos</button><span id="mailSt" class="mut" style="margin-left:8px"></span></div>
 <div id="bYA" class="hid"><label style="display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0 2px"><input type="checkbox" id="syA" checked style="width:auto"> Gravar na planilha original dos avaliadores as edições feitas aqui (horários, aprovado e pré-avaliação)</label>
 <div class="row" style="margin:4px 0 0;align-items:center"><span id="sav" class="mut"></span><button id="brA" class="hid">Reenviar pendentes</button></div></div><div id="bF" class="hid"><label for="pa">Projetos por avaliador</label><input type="number" id="pa" min="1" max="20" value="5"></div>
 <div id="bY" class="hid"><label style="display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0 2px"><input type="checkbox" id="sy" checked style="width:auto"> Sincronizar com a planilha oficial: edições e exclusões de projetos feitas aqui também são aplicadas lá (excluídos vão para a aba "Excluídos"; edições ficam em "Histórico de edições"; projetos excedentes do limite são copiados para a aba "Fila de espera")</label>
@@ -135,7 +135,7 @@ const LINKS_SALVOS={SEMCITEC:{lp:"https://docs.google.com/spreadsheets/d/1ISTv8U
 // ===== SINCRONIZAÇÃO DAS EXCLUSÕES COM A PLANILHA OFICIAL =====
 // URL (/exec) do Code.gs de cada núcleo (planilha de projetos). Sem senha. Vazio = sincronização desligada.
 const SYNC={SEMCITEC:{url:"https://script.google.com/macros/s/AKfycbyPTM0pjvoZyYHS0Rrp8aOB3-2ZLqur85wfBPslUvFjQXW4Mjw0g-fLdZCuSptxxwASdQ/exec"},FECEG:{url:"https://script.google.com/macros/s/AKfycbwQrdTcmuw3Avv1IRVdNgc_LzIa4zQ5JNMglyQmK43Zdjn7Q7H7-4YqvlcuwKpSQRSa/exec"}};
-const ES={p:false,a:false};let RPEND=0;
+const ES={p:false,a:false};let RPEND=0;let MAILPEND=false,mailT=null,mailEnv=null,MAILW=0,estPend=false,estV=0,prePend=false;const MAILREM=new Map();
 let ULT=null;
 async function chamar(m,corpo,av){const c=(av?SYNCAV:SYNC)[m],onde=(av?"avaliadores":"projetos")+" · "+(corpo.acao||"?");
  try{if(!c||!c.url)throw new Error("endereço do script não configurado");
@@ -144,11 +144,11 @@ async function chamar(m,corpo,av){const c=(av?SYNCAV:SYNC)[m],onde=(av?"avaliado
   if(!j.ok)throw new Error(j.erro||"resposta inválida")
   return j}
  catch(e){ULT={onde,msg:String(e.message||e),t:new Date().toLocaleTimeString("pt-BR")};indSave();throw e}}
-function indSave(){const el=document.getElementById("saveInd");if(!el)return;const n=PEND.length+PENDA.size;el.title=ULT?"Último erro ("+ULT.t+") em "+ULT.onde+": "+ULT.msg+" — clique para detalhes e reenviar":"Clique para detalhes";
+function indSave(){const el=document.getElementById("saveInd");if(!el)return;const n=PEND.length+PENDA.size+(MAILPEND?1:0);el.title=ULT?"Último erro ("+ULT.t+") em "+ULT.onde+": "+ULT.msg+" — clique para detalhes e reenviar":"Clique para detalhes";
  if(n||ES.p||ES.a){el.textContent="⚠ pendente"+(n?" ("+n+")":"");el.style.color="var(--er)"}
  else if(envP||envA||RPEND){el.textContent="⏳ salvando...";el.style.color="var(--mut)"}
  else{el.textContent="✔ tudo salvo";el.style.color="var(--ok)"}}
-function detalheSave(){alert("Pendentes: "+PEND.length+" projeto(s), "+PENDA.size+" avaliador(es).\n\n"+(ULT?"Último erro ("+ULT.t+") em "+ULT.onde+":\n"+ULT.msg:"Nenhum erro registrado.")+"\n\nVou tentar de novo agora.");ES.p=false;ES.a=false;enviar();enviarAv();if(syncAv()){lerEstSheet();if(modo==="SEMCITEC")lerPreSheet()}agendarFila();indSave()}
+function detalheSave(){alert("Pendentes: "+PEND.length+" projeto(s), "+PENDA.size+" avaliador(es).\n\n"+(ULT?"Último erro ("+ULT.t+") em "+ULT.onde+":\n"+ULT.msg:"Nenhum erro registrado.")+"\n\nVou tentar de novo agora.");ES.p=false;ES.a=false;enviar();enviarAv();if(MAILPEND)enviarMail();if(syncAv()){estPend?enviarEst():lerEstSheet();if(modo==="SEMCITEC"){prePend?enviarPre():lerPreSheet()}}agendarFila();indSave()}
 function recusadoSync(p,remover){const m=modo,it=remover?{id:p.id,remover:true}:{id:p.id,titulo:p.titulo,inst:p.inst};RPEND++;indSave();
  chamar(m,{acao:"salvarRecusados",itens:[it]}).then(()=>{RPEND--;indSave()}).catch(e=>{RPEND--;ss("⚠ Recusado NÃO gravado na aba Recusados: "+e.message,"er")})}
 const CFG={SEMCITEC:{porAval:10,avalSala:3,avalSalaSeg:6,relatosSeg:5,salas:["Sala 1","Sala 2","Sala 3","Sala 4"],cap:[10,7,7,7,10,10,10],off:[],capSlot:{},extra:[],cat:[]},FECEG:{dataOnline:"13/10",porTurno:50,off:[],capSlot:{},extra:[],cat:[],onlineOn:true}};
@@ -202,9 +202,13 @@ const wb=()=>{const s=new Set(),o={};return{o,add:(n,r)=>{if(r.length)o[nomeAba(
 
 function csvUrl(u){if(/output=csv|tqx=out:csv|\.csv(\?|$)/i.test(u))return u;if(/\/d\/e\//.test(u))return u.replace(/\/pub.*$/,"/pub?output=csv");
  const m=u.match(/\/spreadsheets\/d\/([\w-]+)/);if(!m)return u;const g=(u.match(/gid=(\d+)/)||[])[1];return`https://docs.google.com/spreadsheets/d/${m[1]}/gviz/tq?tqx=out:csv${g?"&gid="+g:""}`}
-async function lerCsv(u){const r=await fetch(csvUrl(u));if(!r.ok)throw new Error("não consegui abrir o link ("+r.status+")");const t=await r.text();
+async function lerCsvT(u){const r=await fetch(csvUrl(u),{cache:"no-store"});if(!r.ok)throw new Error("não consegui abrir o link ("+r.status+")");const t=await r.text();
  if(/^\s*(<!doctype|<html)/i.test(t))throw new Error("o link não retornou uma planilha pública (compartilhe como 'qualquer pessoa com o link' ou publique na web)");
- return Papa.parse(t,{header:true,skipEmptyLines:true,transformHeader:h=>h.trim().toLowerCase()}).data}
+ return t}
+const parseCsv=t=>Papa.parse(t,{header:true,skipEmptyLines:true,transformHeader:h=>h.trim().toLowerCase()}).data;
+async function lerCsv(u){return parseCsv(await lerCsvT(u))}
+// hash rápido (cyrb53) para comparar linhas/planilhas sem guardar texto grande
+const hash53=s=>{let a=0xdeadbeef,b=0x41c6ce57;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);a=Math.imul(a^c,2654435761);b=Math.imul(b^c,1597334677)}a=Math.imul(a^(a>>>16),2246822507)^Math.imul(b^(b>>>13),3266489909);b=Math.imul(b^(b>>>16),2246822507)^Math.imul(a^(a>>>13),3266489909);return(4294967296*(2097151&b)+(a>>>0)).toString(36)};
 
 const uniq=a=>{const s=new Set();return a.filter(x=>{const k=fold(x).trim();if(!k||s.has(k))return false;s.add(k);return true})};
 const splitOrient=t=>uniq(String(t??"").split(/\s*(?:[,;\/\\|&+\n]|\se\s)\s*/).map(x=>x.trim().replace(/^[\-–\s]+|[\-–\s]+$/g,"")).filter(n=>n.length>1&&!/^(nan|none|null|nd|n\/d)$/i.test(n)));
@@ -216,7 +220,7 @@ function prepararProjetos(rows){const fk=(rows.length?Object.keys(rows[0]):[]).m
  for(let i=1;i<=4;i++){const n=String(r[`nome completo (autor ${i})`]||"").trim();if(n){aut.push(n);if(r[`instituição/afiliação (autor ${i})`])ins.add(mapInst(r[`instituição/afiliação (autor ${i})`]))}}
  const inst=mapInst(r["instituição/afiliação (autor 1)"]),c=norm(cat);ins.add(inst);
  const emailKeys=Object.keys(r);const kEmailRep=emailKeys.find(k=>{const f=fold(k);return /email|e-mail/.test(f)&&(/representante|autor 1|autor1|principal|responsavel/.test(f))})||emailKeys.find(k=>/email|e-mail/.test(fold(k))&&/autor|representante/.test(fold(k)));const emailRep=String(kEmailRep?r[kEmailRep]:"").trim();
- return{id:String(r["id da submissão"]??"").trim(),titulo:limparHtml(r["título"]),cat,autores:aut.join("; "),inst,insts:ins,eixo:r["eixo"]||"",emailRep,orient:orients.join("; "),orients,situacao:kS?String(r[kS]??"").trim():"",
+ return{_s:hash53(JSON.stringify(r)),id:String(r["id da submissão"]??"").trim(),titulo:limparHtml(r["título"]),cat,autores:aut.join("; "),inst,insts:ins,eixo:r["eixo"]||"",emailRep,orient:orients.join("; "),orients,situacao:kS?String(r[kS]??"").trim():"",
  tipo:c.includes("relato")?"Relato":(c.includes("pesquisa")||c.includes("academica"))?"Pesquisa":"Outros",
  extra:modo==="FECEG"?Object.fromEntries(EXTRAS.filter(k=>k in r).map(k=>[k.charAt(0).toUpperCase()+k.slice(1),r[k]])):{}}}).filter(p=>p.id).map(p=>(p.o={id:p.id,titulo:p.titulo,autor1:p.autores.split("; ")[0]||"",situacao:p.situacao},p))}
 let HCOLS=[];
@@ -418,7 +422,7 @@ function enviar(){return envP||(envP=(async()=>{try{
    ss(rc?`Planilha atualizada, mas ${rc} edição(ões) foram recusadas (campo sem coluna na planilha ou mais autores do que colunas).`:nf?`Planilha atualizada, mas ${nf} item(ns) não foram encontrados nela (talvez já removidos).`:`Planilha oficial atualizada (${lote.length} alteração(ões)).`,rc?"er":nf?"":"ok")}
   }catch(e){ss(`⚠ ${PEND.length} alteração(ões) NÃO enviada(s) à planilha oficial: ${e.message}. Use "Reenviar pendentes".`,"er")}
   finally{envP=null}})())}
-addEventListener("beforeunload",e=>{if(PEND.length||PENDA.size){e.preventDefault();e.returnValue=""}});
+addEventListener("beforeunload",e=>{if(PEND.length||PENDA.size||MAILPEND||estPend){e.preventDefault();e.returnValue=""}});
 const tipoDe=c=>{c=norm(c);return c.includes("relato")?"Relato":(c.includes("pesquisa")||c.includes("academica"))?"Pesquisa":"Outros"};
 const V=(d,r,k)=>String(d.val?d.val(r,k):r[k]??""),isO=k=>/^o\d+$/.test(k),F={p:{},x:{},a:{},d:{}},DUP=[];let NG=0,dupVisto=0;
 const colsProj=L=>{const n=Math.max(1,...L.map(p=>p.orients.length));return[["id","ID"],["titulo","Título"],["situacao","Situação"],["cat","Categoria"],["autores","Autores"],["inst","Instituição"],["emailRep","E-mail representante principal"],...Array.from({length:n},(_,i)=>["o"+i,"Orientador "+(i+1)])]};
@@ -461,11 +465,16 @@ function marcarEmailEnviado(p,e,tipo){
   RPEND++;indSave();chamar(modo,{acao:"salvarEmailStatus",itens:[registro]}).then(()=>{RPEND--;indSave()}).catch(err=>{RPEND--;indSave();st("E-mail aberto, mas o status não foi gravado na planilha: "+err.message,"er")});
  }
 }
-async function lerEmailStatus(){
- try{const sv=JSON.parse(localStorage.getItem("sdcv_email_status_"+modo));if(sv)EMAIL_STATUS=sv}catch(_){EMAIL_STATUS={}}
- if(!syncOn())return;
- try{const j=await chamar(modo,{acao:"lerEmailStatus"});if(Array.isArray(j.itens)){EMAIL_STATUS={};j.itens.forEach(x=>EMAIL_STATUS[String(x.id)]=x);try{localStorage.setItem("sdcv_email_status_"+modo,JSON.stringify(EMAIL_STATUS))}catch(_){}};draw("p")}catch(e){/* mantém o cache local */}
-}
+function pintarStatusEmail(){document.querySelectorAll("#gp tr[data-i]").forEach(tr=>{const p=P[+tr.dataset.i],d=p&&tr.querySelector(".email-status");if(!d)return;const x=statusEmailProjeto(p.id);d.className="email-status"+(x?"":" mut");d.textContent=x?"✓ Enviado · "+(x.tipo||"OK"):"Não enviado";d.title=x&&x.data||""})}
+async function lerEmailStatus(poll){
+ if(!poll){try{const sv=JSON.parse(localStorage.getItem("sdcv_email_status_"+modo));if(sv)EMAIL_STATUS=sv}catch(_){EMAIL_STATUS={}}}
+ if(!syncOn()||(poll&&RPEND))return false;
+ try{const m=modo,j=await chamar(m,{acao:"lerEmailStatus"});if(m!==modo)return false;
+  if(Array.isArray(j.itens)){const sg=hash53(JSON.stringify(j.itens)),k="em|"+m;if(poll&&(SIGS.get(k)===sg||RPEND))return false;SIGS.set(k,sg);
+   const nv={};j.itens.forEach(x=>nv[String(x.id)]=x);EMAIL_STATUS=nv;try{localStorage.setItem("sdcv_email_status_"+m,JSON.stringify(EMAIL_STATUS))}catch(_){}
+   if(poll){pintarStatusEmail();return"status de e-mail"}}
+  if(!poll)draw("p")}catch(e){if(poll)throw e}
+ return false}
 function paginaEmailProjeto(p,tipoInicial="ok"){
  const w=window.open("","_blank");
  if(!w){st("O navegador bloqueou a nova página. Permita pop-ups para este site.","er");return}
@@ -484,8 +493,9 @@ function bindGrid(t){const el=$("g"+t),d=DS[t];
  el.addEventListener("focusout",e=>{const td=e.target.closest&&e.target.closest("td[data-k]");if(!td)return;const r=d.rows()[+td.parentNode.dataset.i];if(!r)return;const k=td.dataset.k,v=td.textContent.trim();if(v!==V(d,r,k)){d.set(r,k,v);if(isProj(t))editarProj(r,k,v);if(isProj(t)&&isO(k)&&splitOrient(v).length>1){draw(t);return}refDup()}td.textContent=V(d,r,k)});
  el.addEventListener("change",e=>{const x=e.target.closest&&e.target.closest("select.sit");if(!x)return;mudarEtapa(t,+x.closest("tr").dataset.i,x.value)});
  el.addEventListener("input",e=>{const c=e.target.closest&&e.target.closest(".cf");if(!c)return;F[t][c.dataset.k]=c.value;aplicar(t)});
- el.addEventListener("click",e=>{const em=e.target.closest("[data-emailproj]");if(em){enviarEmailProjeto(em.dataset.emailproj,"ok");return}const b=e.target.closest("[data-del]");if(!b)return;const i=+b.closest("tr").dataset.i,r=d.rows()[i];d.rows().splice(i,1);if(isProj(t)&&r)excluir(r);draw(t)})}
-function refDup(){DUP.length=0;let g=0;
+ el.addEventListener("click",e=>{const em=e.target.closest("[data-emailproj]");if(em){enviarEmailProjeto(em.dataset.emailproj,"ok");return}const b=e.target.closest("[data-del]");if(!b)return;const i=+b.closest("tr").dataset.i,r=d.rows()[i];d.rows().splice(i,1);registrarRemocao(t,r);if(isProj(t)&&r)excluir(r);draw(t)})}
+function refDup(){clearTimeout(rdT);rdT=setTimeout(refDupX,30)}
+function refDupX(){DUP.length=0;let g=0;
  const grupos=(t,kf,motivo)=>{const m=new Map();DS[t].rows().forEach(r=>{const k=kf(r);if(k){if(!m.has(k))m.set(k,[]);m.get(k).push(r)}});m.forEach(l=>{if(l.length>1){g++;l.forEach(r=>DUP.push({g,t,r,motivo}))}})};
  grupos("p",r=>r.id&&"i"+r.id,"ID repetido");grupos("p",r=>norm(r.titulo),"Título duplicado");grupos("a",r=>norm(r.nome),"Nome repetido");grupos("a",r=>fold(r.email).trim(),"E-mail repetido");NG=g;
  if(dupVisto&&dupVisto!==g)dupVisto=0;
@@ -528,7 +538,8 @@ async function enviarFila(m){if(m!==modo||!PROJ_OK)return;await envP;if(m!==modo
 function detInst(){const el=$("dInst");if(!SEL){el.innerHTML="";return}
  const l=P.filter(p=>p.inst===SEL.i&&recDe(p.situacao)===SEL.r);if(!l.length){SEL=null;el.innerHTML="";return}
  el.innerHTML=`<div class="card" style="margin:12px 0 0;background:#f7faff"><div class="row" style="margin:0 0 8px;align-items:center"><strong>${esc(SEL.i)} — ${esc(SEL.r)} (${l.length})</strong><button id="fDet" style="margin-left:auto">Fechar</button></div><div class="tw"><table><tr><th>ID</th><th>Título</th><th>Categoria</th><th>Autores</th><th>Situação</th></tr>${l.map(p=>`<tr><td>${esc(p.id)}</td><td>${esc(p.titulo)}</td><td>${esc(p.cat)}</td><td>${esc(p.autores)}</td><td>${esc(p.situacao)}</td></tr>`).join("")}</table></div></div>`}
-function refInst(){const m=new Map(),g=i=>{if(!m.has(i))m.set(i,{p:0,a:0,r:{}});return m.get(i)},cols=modo==="FECEG"?[...RECF]:[];
+let riT=null,rdT=null;function refInst(){clearTimeout(riT);riT=setTimeout(refInstX,30)}
+function refInstX(){const m=new Map(),g=i=>{if(!m.has(i))m.set(i,{p:0,a:0,r:{}});return m.get(i)},cols=modo==="FECEG"?[...RECF]:[];
  P.forEach(p=>{const v=g(p.inst),r=recDe(p.situacao);v.p++;v.r[r]=(v.r[r]||0)+1;if(!cols.includes(r))cols.push(r)});A.forEach(a=>g(a.inst).a++);
  if(modo!=="FECEG")cols.sort((a,b)=>{const x=etapaDe(a),y=etapaDe(b);return(x<0?9:x)-(y<0?9:y)});
  const l=[...m.entries()].sort((x,y)=>y[1].p-x[1].p||y[1].a-x[1].a||x[0].localeCompare(y[0]));
@@ -559,23 +570,56 @@ function render(d){const o=$("out");o.innerHTML="";
 
 let lastSel=null;
 const ABA_EXC="Excluídos";
-async function addExc(l,n){try{const m=String(l).match(/\/spreadsheets\/d\/([\w-]+)/);if(!m)return;
- const rows=await lerCsv(`https://docs.google.com/spreadsheets/d/${m[1]}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(ABA_EXC)}`);if(n!==sq.p)return;
- const sv=semSit,lista=prepararProjetos(rows.map(r=>{r={...r};if(!("id da submissão" in r)){const k=Object.keys(r).find(k=>/^id(\s|$)/.test(k));if(k)r["id da submissão"]=r[k]}
-  if(!("título" in r)&&"titulo" in r)r["título"]=r["titulo"];if(!("nome completo (autor 1)" in r)&&"autor1" in r)r["nome completo (autor 1)"]=r["autor1"];return r}));semSit=sv;
- const ja=new Set([...P,...O].map(x=>x.id));
- lista.forEach(p=>{if(ja.has(p.id))return;ja.add(p.id);if(modo==="FECEG"&&lerRec().has(String(p.id))){p.situacao="Recusado";p.o.situacao="Recusado";p.exc=true;p.noSync=true;P.push(p);return}p.situacao="Rejeitado";p.o.situacao="Rejeitado";p.exc=true;O.push(p)})}catch(e){}}
-async function lerProj(){const n=++sq.p,l=LINKS_SALVOS[modo].lp;PROJ_OK=false;P=[];O=[];draw("p");draw("x");if(!l)return st("Link dos projetos deste núcleo não configurado.","er");
+const TXE=new Map(),urlExc=l=>{const m=String(l).match(/\/spreadsheets\/d\/([\w-]+)/);return m?`https://docs.google.com/spreadsheets/d/${m[1]}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(ABA_EXC)}`:null};
+async function buscarProj(l){const u=urlExc(l),pe=u?lerCsvT(u).then(t=>(TXE.set(l,t),t)).catch(()=>TXE.get(l)||""):Promise.resolve("");const[t1,t2]=await Promise.all([lerCsvT(l),pe]);return{t1,t2}}
+// monta (sem mexer na tela) os projetos da planilha principal e os da aba "Excluídos"
+function construirProj(t1,t2){const r=prepararProjetos(parseCsv(t1));
+ if(!r.length)throw new Error("planilha de projetos vazia ou sem a coluna 'id da submissão'");
+ if(semSit)throw new Error("não encontrei a coluna 'Situação' na planilha, então não dá para filtrar só os projetos em Submissão");
+ r.forEach(p=>p.dest=emProj(p.situacao)?"P":"O");
+ const ja=new Set(r.map(x=>x.id)),ex=[];
+ if(t2){const sv=semSit;try{const rec=modo==="FECEG"?lerRec():null,
+  lista=prepararProjetos(parseCsv(t2).map(r=>{r={...r};if(!("id da submissão" in r)){const k=Object.keys(r).find(k=>/^id(\s|$)/.test(k));if(k)r["id da submissão"]=r[k]}
+  if(!("título" in r)&&"titulo" in r)r["título"]=r["titulo"];if(!("nome completo (autor 1)" in r)&&"autor1" in r)r["nome completo (autor 1)"]=r["autor1"];return r}));
+  lista.forEach(p=>{if(ja.has(p.id))return;ja.add(p.id);p.exc=true;if(rec&&rec.has(String(p.id))){p.situacao="Recusado";p.o.situacao="Recusado";p.noSync=true;p.dest="P"}else{p.situacao="Rejeitado";p.o.situacao="Rejeitado";p.dest="O"}ex.push(p)})}catch(e){}finally{semSit=sv}}
+ return{r,ex}}
+async function lerProj(){const n=++sq.p,l=LINKS_SALVOS[modo].lp;PROJ_OK=false;P=[];O=[];REMP.clear();draw("p");draw("x");if(!l)return st("Link dos projetos deste núcleo não configurado.","er");
  st("Carregando projetos de "+modo+"...");
- try{const rows=await lerCsv(l);if(n!==sq.p)return;const r=prepararProjetos(rows);if(!r.length)throw new Error("planilha de projetos vazia ou sem a coluna 'id da submissão'");
-  if(semSit)throw new Error("não encontrei a coluna 'Situação' na planilha, então não dá para filtrar só os projetos em Submissão");
-  P=r.filter(x=>emProj(x.situacao));O=r.filter(x=>!emProj(x.situacao));await addExc(l,n);if(n!==sq.p)return;ordId(P);ordId(O);draw("p");draw("x");PROJ_OK=true;refInst();
-  st(`${P.length} projeto(s) em Submissão/Avaliação/Aprovado carregados${O.length?` e ${O.length} em outras situações (aba "Outras situações")`:""}. Confira, edite ou exclua o que precisar a distribuição é atualizada sozinha.${FILA.length?` ${FILA.length} excedente(s) do limite de ${limAtual()} foram para a aba "Fila de espera".`:""}`,"ok")}
+ try{const{t1,t2}=await buscarProj(l);if(n!==sq.p)return;const{r,ex}=construirProj(t1,t2);
+  [...r,...ex].forEach(p=>(p.dest==="P"?P:O).push(p));ordId(P);ordId(O);TXT.set("P|"+modo+"|"+l,t1+"\u0001"+t2);draw("p");draw("x");PROJ_OK=true;
+  const nf=calcSel().fila.length;
+  st(`${P.length} projeto(s) em Submissão/Avaliação/Aprovado carregados${O.length?` e ${O.length} em outras situações (aba "Outras situações")`:""}. Confira, edite ou exclua o que precisar a distribuição é atualizada sozinha.${nf?` ${nf} excedente(s) do limite de ${limAtual()} foram para a aba "Fila de espera".`:""}`,"ok")}
  catch(e){if(n===sq.p)st("Erro: "+e.message,"er")}}
+// ===== ATUALIZAÇÃO AUTOMÁTICA: só mexe no que mudou =====
+const AUTO={ms:10000,scriptCada:3,on:true,run:false,t:null,ciclo:1,ult:"",msg:"",err:""},TXT=new Map(),SIGS=new Map(),REMP=new Map(),REMA=new Set(),FAIL={};let AVSRC="link";
+const editandoEm=sel=>{const ae=document.activeElement;if(ae&&ae!==document.body&&ae.closest&&ae.closest(sel)&&(ae.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)))return true;return!!document.querySelector(sel.split(",").map(x=>x.trim()+" details[open]").join(","))};
+const keyP=p=>(p.exc?"x":"")+p._s;
+function registrarRemocao(t,r){if(!r)return;if(isProj(t)){if(r._s)REMP.set(keyP(r),(REMP.get(keyP(r))||0)+1)}else if(t==="a"&&r.k0)REMA.add(r.k0)}
+// reaproveita os objetos cujas linhas não mudaram (preserva edições locais) e só troca/insere/remove o resto
+function mesclarProj(r,ex){const antes=[...P,...O],emP=new Set(P),pool=new Map();
+ antes.forEach(p=>{const k=keyP(p);if(!pool.has(k))pool.set(k,[]);pool.get(k).push(p)});
+ const rem=new Map(REMP),nP=[],nO=[];let add=0,usados=0;
+ [...r,...ex].forEach(p=>{const k=keyP(p),c=rem.get(k)||0;if(c>0){rem.set(k,c-1);return}
+  const q=pool.get(k);if(q&&q.length){const o=q.shift();usados++;(emP.has(o)?nP:nO).push(o);return}
+  add++;(p.dest==="P"?nP:nO).push(p)});
+ const del=antes.length-usados;if(add||del){P=nP;O=nO}return{mudou:!!(add||del),add,del}}
+async function atualizarProj(){const m=modo,l=LINKS_SALVOS[m].lp,n=sq.p,bloq=()=>!PROJ_OK||PEND.length||envP||editandoEm("#gp,#gx,#gd");
+ if(!l||bloq())return false;const{t1,t2}=await buscarProj(l);if(m!==modo||n!==sq.p||bloq())return false;
+ const k="P|"+m+"|"+l,sg=t1+"\u0001"+t2;if(TXT.get(k)===sg)return false;
+ const{r,ex}=construirProj(t1,t2),q=mesclarProj(r,ex);TXT.set(k,sg);if(!q.mudou)return false;
+ ordId(P);ordId(O);draw("p");draw("x");return`projetos: +${q.add} novo(s)/alterado(s), −${q.del} removido(s)`}
 async function lerAval(){const n=++sq.a,l=$("la").value.trim();if(!l)return st("Cole o link da planilha de avaliadores.","er");
  st("Carregando avaliadores...");
- try{const rows=await lerCsv(l);if(n!==sq.a)return;A=prepararAval(rows);aplicarExtra();aplicarOvr();draw("a");st(`${A.length} avaliadores carregados`+(modo==="SEMCITEC"?` (${A.filter(a=>a.aprov).length} aprovados, ${A.filter(a=>a.pre).length} para a pré-avaliação).`:"."),"ok")}
+ try{const t=await lerCsvT(l);if(n!==sq.a)return;REMA.clear();AVSRC="link";TXT.set("A|"+modo+"|"+l,t);A=prepararAval(parseCsv(t));aplicarExtra();aplicarOvr();draw("a");st(`${A.length} avaliadores carregados`+(modo==="SEMCITEC"?` (${A.filter(a=>a.aprov).length} aprovados, ${A.filter(a=>a.pre).length} para a pré-avaliação).`:"."),"ok")}
  catch(e){if(n===sq.a)st("Erro: "+e.message,"er")}}
+async function atualizarAval(){const m=modo,l=$("la").value.trim(),n=sq.a,bloq=()=>!l||AVSRC!=="link"||PENDA.size||envA||editandoEm("#ga");
+ if(bloq())return false;const t=await lerCsvT(l);if(m!==modo||n!==sq.a||bloq())return false;
+ const k="A|"+m+"|"+l;if(TXT.get(k)===t)return false;
+ const locais=A.filter(a=>!a.k0),antes=A.length-locais.length;
+ A=prepararAval(parseCsv(t));aplicarExtra();aplicarOvr();if(REMA.size)A=A.filter(a=>!REMA.has(a.k0));
+ const dep=A.length;A.push(...locais);TXT.set(k,t);draw("a");return`avaliadores: ${dep} (antes ${antes})`}
+async function atualizarRec(){const lr=$("lr").value.trim();if(modo!=="SEMCITEC"||!lr)return false;const t=await lerCsvT(lr),k="R|"+lr,primeira=!TXT.has(k);if(TXT.get(k)===t)return false;TXT.set(k,t);
+ if(primeira&&recC.l===lr)return false;recC={l:lr,m:mapaRec(parseCsv(t))};agendarCalc();return"recomendações"}
 let recC={l:"",m:{}},calcT=null,calcN=0;
 const agendarCalc=()=>{clearTimeout(calcT);calcT=setTimeout(calcular,350)},vazio=m=>{res={};GRD=null;drawG();drawQ();drawV();$("out").innerHTML=`<p class="mut">${m}</p>`};
 async function calcular(){const n=++calcN;try{
@@ -588,17 +632,17 @@ async function calcular(){const n=++calcN;try{
  if(A.length){d=S?semcitec(sel,A,pre):feceg(sel,A,+$("pa").value||5);if(fila.length)d.avisos.unshift(`${fila.length} projeto(s) excedente(s) do limite de ${limAtual()} ficaram na fila de espera e não entram nos arquivos.`);if(NG)d.avisos.push(`${NG} grupo(s) de cadastros repetidos: revise na aba Duplicados.`);nr["Distribuição "+modo]=d.w}
  res=nr;GRD=d&&d.g?d:null;render(d);drawG();drawQ();drawV()}catch(e){if(n===calcN){res={};$("out").innerHTML=`<div class="av">Erro ao calcular: ${esc(e.message)}</div>`}}}
 function carregar(){const l={...LINKS_SALVOS[modo]},fixo=!!LINKS_SALVOS[modo].la;try{const sv=JSON.parse(localStorage.getItem("sdcv_"+modo))||{};if(fixo)delete sv.la;Object.assign(l,sv)}catch(e){}$("la").value=l.la||"";$("lr").value=l.lr||"";$("la").readOnly=fixo;$("laN").textContent=fixo?"Planilha fixa dos avaliadores deste núcleo (não editável). Para usar outra, carregue um arquivo abaixo.":""}
-function setModo(m){modo=m;PROJ_OK=false;normalizarTemplates();clearTimeout(filaT);P=[];O=[];FILA=[];SELP=[];$("lim").value=LIMITES[m];$("qf").value=$("qs").value="";$("mS").className=m==="SEMCITEC"?"on":"";$("mF").className=m==="FECEG"?"on":"";$("bR").className=m==="SEMCITEC"?"":"hid";$("bF").className=m==="FECEG"?"":"hid";$("tQ").hidden=m!=="SEMCITEC";$("tV").hidden=m!=="FECEG";
+function setModo(m){if(estPend)enviarEst();modo=m;PROJ_OK=false;REMP.clear();REMA.clear();AVSRC="link";normalizarTemplates();clearTimeout(filaT);P=[];O=[];FILA=[];SELP=[];$("lim").value=LIMITES[m];$("qf").value=$("qs").value="";$("mS").className=m==="SEMCITEC"?"on":"";$("mF").className=m==="FECEG"?"on":"";$("bR").className=m==="SEMCITEC"?"":"hid";$("bF").className=m==="FECEG"?"":"hid";$("tQ").hidden=m!=="SEMCITEC";$("tV").hidden=m!=="FECEG";
  $("out").innerHTML="";res={};A=[];$("bY").className=syncOn()?"":"hid";$("bYA").className=syncAv()?"":"hid";sav(syncAv()?"Gravação na planilha de avaliadores ativa.":"","ok");ss(syncOn()?"Sincronização com a planilha oficial ativa.":"","ok");$("qp").value=$("qa").value=$("qx").value="";F.p={};F.x={};F.a={};F.d={};dupVisto=0;drawCfg();carMan();carPre();GRD=null;drawV();aba("P");draw("a");carregar();lerProj();lerEmailStatus();if($("la").value.trim())lerAval()}
 $("bre").onclick=()=>{enviar();agendarFila()};$("tF").onclick=()=>aba("F");$("tS").onclick=()=>aba("S");$("qs").oninput=drawSel;$("qf").oninput=drawFila;$("sy").onchange=agendarFila;$("mS").onclick=()=>setModo("SEMCITEC");$("mF").onclick=()=>setModo("FECEG");$("bg").onclick=()=>Object.entries(res).forEach(([n,sh],i)=>setTimeout(()=>baixar(n,sh),i*500));$("bl").onclick=lerProj;$("bca").onclick=lerAval;
 $("fa").onchange=async e=>{const f=e.target.files[0];if(!f)return;const n=++sq.a;st("Lendo arquivo...");
  try{let rows;if(/\.csv$/i.test(f.name))rows=Papa.parse(await f.text(),{header:true,skipEmptyLines:true,transformHeader:h=>h.trim().toLowerCase()}).data;
   else{const b=XLSX.read(await f.arrayBuffer(),{type:"array"});rows=XLSX.utils.sheet_to_json(b.Sheets[b.SheetNames[0]],{defval:""}).map(r=>Object.fromEntries(Object.entries(r).map(([k,v])=>[k.trim().toLowerCase(),v])))}
-  if(n!==sq.a)return;A=prepararAval(rows);aplicarExtra();aplicarOvr();draw("a");st(`${A.length} avaliadores carregados do arquivo "${f.name}"`+(modo==="SEMCITEC"?` (${A.filter(a=>a.aprov).length} aprovados, ${A.filter(a=>a.pre).length} para a pré-avaliação).`:"."),"ok")}
+  if(n!==sq.a)return;AVSRC="arquivo";REMA.clear();A=prepararAval(rows);aplicarExtra();aplicarOvr();draw("a");st(`${A.length} avaliadores carregados do arquivo "${f.name}"`+(modo==="SEMCITEC"?` (${A.filter(a=>a.aprov).length} aprovados, ${A.filter(a=>a.pre).length} para a pré-avaliação).`:"."),"ok")}
  catch(err){st("Erro ao ler o arquivo: "+err.message,"er")}e.target.value=""};
 $("bad").onclick=()=>{A.push({nome:"Novo avaliador",inst:"Outros/Sem Instituição",disp:"",email:"",areas:"",aprov:true,pre:true});$("qa").value="";draw("a");$("ga").scrollTop=1e9};
 $("qp").oninput=()=>draw("p");$("qa").oninput=()=>draw("a");$("tP").onclick=()=>aba("P");$("tX").onclick=()=>aba("X");$("qx").oninput=()=>draw("x");$("tA").onclick=()=>aba("A");$("tD").onclick=()=>aba("D");
-$("gd").onclick=e=>{const b=e.target.closest("[data-del]");if(!b)return;const x=DUP[+b.closest("tr").dataset.d],a=DS[x.t].rows(),i=a.indexOf(x.r);if(i>=0){a.splice(i,1);if(x.t==="p")excluir(x.r)}draw("p");draw("a")};
+$("gd").onclick=e=>{const b=e.target.closest("[data-del]");if(!b)return;const x=DUP[+b.closest("tr").dataset.d],a=DS[x.t].rows(),i=a.indexOf(x.r);if(i>=0){a.splice(i,1);registrarRemocao(x.t,x.r);if(x.t==="p")excluir(x.r)}draw("p");draw("a")};
 ["p","x","a"].forEach(bindGrid);
 $("gd").addEventListener("focusout",e=>{const td=e.target.closest&&e.target.closest("td[data-k]");if(!td)return;const x=DUP[+td.parentNode.dataset.d];if(!x)return;const d=DS[x.t],k=td.dataset.k,v=td.textContent.trim();if(v!==V(d,x.r,k)){d.set(x.r,k,v);if(x.t==="p")editarProj(x.r,k,v);draw("p");draw("a")}else td.textContent=V(d,x.r,k)});
 $("gd").addEventListener("change",e=>{const s=e.target.closest&&e.target.closest("select.sit");if(!s)return;const x=DUP[+s.closest("tr").dataset.d];if(!x||x.t!=="p")return;const i=P.indexOf(x.r);if(i>=0)mudarEtapa("p",i,s.value)});
@@ -624,14 +668,31 @@ $("hadd").onclick=()=>{const d=$("hd").value,a=$("h1").value,b=$("h2").value;if(
  const[y,m,dd]=d.split("-"),tx=modo==="SEMCITEC"?`${dd}/${m}/${y} ${a}-${b}`:`${dd}/${m}/${y.slice(2)} ${hF(a)} às ${hF(b)}`;
  const todos=$("hall").checked;if(todos){CFG[modo].extra.push(tx);extraA(tx)}else CFG[modo].cat.push(tx);salvarCfg();draw("a");st(todos?"Horário adicionado a todos os avaliadores aprovados.":"Horário adicionado às opções: marque-o em cada avaliador.","ok")};
 function normalizarTemplates(){for(const m of Object.keys(CFG)){CFG[m].emailTemplates=CFG[m].emailTemplates||JSON.parse(JSON.stringify(MAIL_PADRAO));CFG[m].emailTemplates.ok=Object.assign({},MAIL_PADRAO.ok,CFG[m].emailTemplates.ok||{});CFG[m].emailTemplates.recusado=Object.assign({},MAIL_PADRAO.recusado,CFG[m].emailTemplates.recusado||{});}}
-function drawMailTemplates(){normalizarTemplates();const t=CFG[modo].emailTemplates;$("mailOkSub").value=t.ok.subject;$("mailOkBody").value=t.ok.body;$("mailRecSub").value=t.recusado.subject;$("mailRecBody").value=t.recusado.body;}
-function salvarMailTemplates(){normalizarTemplates();const t=CFG[modo].emailTemplates;t.ok.subject=$("mailOkSub").value;t.ok.body=$("mailOkBody").value;t.recusado.subject=$("mailRecSub").value;t.recusado.body=$("mailRecBody").value;salvarCfg();agendarEst();$("mailSt").textContent="Salvo automaticamente.";}
-["mailOkSub","mailOkBody","mailRecSub","mailRecBody"].forEach(id=>$(id).addEventListener("input",salvarMailTemplates));$("mailSave").onclick=salvarMailTemplates;
+function drawMailTemplates(){normalizarTemplates();const t=CFG[modo].emailTemplates,set=(id,v)=>{const el=$(id);if(el&&document.activeElement!==el&&el.value!==v)el.value=v};set("mailOkSub",t.ok.subject);set("mailOkBody",t.ok.body);set("mailRecSub",t.recusado.subject);set("mailRecBody",t.recusado.body)}
+const horaAgora=()=>new Date().toLocaleTimeString("pt-BR"),ABA_MODELOS="Modelos de e-mail",mailSig=t=>hash53(JSON.stringify([t.ok.subject,t.ok.body,t.recusado.subject,t.recusado.body]));
+const mailMsg=(m,c="")=>{const e=$("mailSt");e.textContent=m;e.style.color=c==="er"?"var(--er)":c==="ok"?"var(--ok)":""};
+// (b) salvar: guarda no navegador, grava na aba "Modelos de e-mail" (e no estado geral) e mostra o resultado REAL, não um "salvo" fixo
+function salvarMailTemplates(imediato){normalizarTemplates();const t=CFG[modo].emailTemplates;t.ok.subject=$("mailOkSub").value;t.ok.body=$("mailOkBody").value;t.recusado.subject=$("mailRecSub").value;t.recusado.body=$("mailRecBody").value;
+ salvarCfg();MAILPEND=true;indSave();mailMsg("Alteração pendente — gravando na planilha...");clearTimeout(mailT);mailT=setTimeout(enviarMail,imediato===true?0:1200)}
+function enviarMail(){clearTimeout(mailT);return mailEnv||(mailEnv=(async()=>{try{
+  while(MAILPEND){MAILPEND=false;const m=modo;normalizarTemplates();const t=JSON.parse(JSON.stringify(CFG[m].emailTemplates));MAILW=Date.now();mailMsg("Gravando modelos na planilha...");
+   try{await chamar(m,{acao:"salvarModelosEmail",modelos:{ok:t.ok,recusado:t.recusado}},true);MAILW=Date.now();if(!MAILPEND)mailMsg("✔ Modelos salvos na planilha às "+horaAgora(),"ok")}
+   catch(e){MAILPEND=true;mailMsg("⚠ NÃO gravou na planilha: "+e.message+(/a[cç][aã]o|inv[aá]lid|desconhec|unknown/i.test(e.message)?" — o script da planilha de avaliadores precisa do trecho Code_modelos_email.gs (reimplante).":"")+' Clique em "Salvar modelos" para tentar de novo.',"er");break}}
+ }finally{mailEnv=null;indSave()}})())}
+// (c) leitura: a aba "Modelos de e-mail" é lida por CSV a cada 10 s (sem usar cota do Apps Script)
+function tabelaModelos(t){const a=Papa.parse(t,{skipEmptyLines:true}).data,h=a.findIndex(r=>{const f=r.map(c=>fold(c).trim());return f.includes("modelo")&&f.includes("assunto")&&f.includes("corpo")});if(h<0)return null;const cab=a[h].map(c=>fold(c).trim());return a.slice(h+1).map(r=>Object.fromEntries(cab.map((c,i)=>[c,r[i]??""])))}
+async function atualizarModelos(){const m=modo,la=($("la").value||"").trim(),id=(la.match(/\/spreadsheets\/d\/([\w-]+)/)||[])[1],ocupado=()=>MAILPEND||mailEnv||Date.now()-MAILW<30000||editandoEm(".mailbox");
+ if(!id||ocupado())return false;let t;try{t=await lerCsvT(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent(ABA_MODELOS)}`)}catch(e){return false}
+ if(m!==modo)return false;const rows=tabelaModelos(t);if(!rows)return false;
+ const rem={};rows.forEach(r=>{if(fold(r["modo"]).trim()!==fold(m))return;const k=fold(r["modelo"]).trim();if(k==="ok"||k==="recusado")rem[k]={subject:String(r["assunto"]??""),body:String(r["corpo"]??"")}});
+ if(!rem.ok&&!rem.recusado)return false;normalizarTemplates();const loc=CFG[m].emailTemplates,novo={ok:{...loc.ok,...(rem.ok||{})},recusado:{...loc.recusado,...(rem.recusado||{})}},sg=mailSig(novo);
+ if(MAILREM.get(m)===sg||ocupado())return false;MAILREM.set(m,sg);if(mailSig(loc)===sg)return false;
+ CFG[m].emailTemplates=novo;try{localStorage.setItem("sdcv_cfg",JSON.stringify(CFG))}catch(e){}drawMailTemplates();mailMsg("↻ Modelos atualizados a partir da planilha às "+horaAgora(),"ok");return"modelos de e-mail"}
+["mailOkSub","mailOkBody","mailRecSub","mailRecBody"].forEach(id=>$(id).addEventListener("input",()=>salvarMailTemplates()));$("mailSave").onclick=()=>salvarMailTemplates(true);
 const CF={SEMCITEC:[["porAval","Projetos por avaliador (pré-avaliação)"],["avalSala","Avaliadores por sala"],["avalSalaSeg","Avaliadores na sala de segunda-feira"],["relatosSeg","Relatos na segunda-feira"]],FECEG:[["porTurno","Projetos por turno presencial"],["dataOnline","Data da avaliação online (dd/mm)","text"]]};
 function drawCfg(){const C=CFG[modo],S=modo==="SEMCITEC";normalizarTemplates();
  $("cfgBody").innerHTML=`<label>Link da planilha de projetos<input data-lp type="text" value="${esc(LINKS_SALVOS[modo].lp)}"></label><div class="g2">`+CF[modo].map(([k,n,t])=>`<label>${n}<input data-cf="${k}" type="${t||"number"}" min="0" value="${esc(C[k])}"></label>`).join("")+"</div>"+
- (S?`<label>Salas (separadas por vírgula; a última recebe os Relatos)<input data-cf="salas" type="text" value="${esc(C.salas.join(", "))}"></label><label>Projetos por sala em cada dia da semana (por horário, ajuste na aba Horários)</label><div class="g2">${DIAS.map((d,i)=>`<label class="mut" style="font-weight:400">${d}<input data-cd="${i}" type="number" min="0" value="${C.cap[i]}"></label>`).join("")}</div>`:"")+(!S?`<div class="fld" style="margin:12px 0"><b>Avaliação online</b> <span class="mut">${C.onlineOn===false?"desativada: não aparece na grade nem nos arquivos.":"ativada: aparece como coluna Online na grade."}</span><div class="row" style="margin:8px 0 0"><button data-onl="1"${C.onlineOn===false?' class="p"':""}>${C.onlineOn===false?"Ativar":"Desativar"} avaliação online</button></div></div>`:"")}
-drawMailTemplates();
+ (S?`<label>Salas (separadas por vírgula; a última recebe os Relatos)<input data-cf="salas" type="text" value="${esc(C.salas.join(", "))}"></label><label>Projetos por sala em cada dia da semana (por horário, ajuste na aba Horários)</label><div class="g2">${DIAS.map((d,i)=>`<label class="mut" style="font-weight:400">${d}<input data-cd="${i}" type="number" min="0" value="${C.cap[i]}"></label>`).join("")}</div>`:"")+(!S?`<div class="fld" style="margin:12px 0"><b>Avaliação online</b> <span class="mut">${C.onlineOn===false?"desativada: não aparece na grade nem nos arquivos.":"ativada: aparece como coluna Online na grade."}</span><div class="row" style="margin:8px 0 0"><button data-onl="1"${C.onlineOn===false?' class="p"':""}>${C.onlineOn===false?"Ativar":"Desativar"} avaliação online</button></div></div>`:"");drawMailTemplates()}
 $("cfgBody").addEventListener("change",e=>{const t=e.target,C=CFG[modo];
  if(t.dataset.lp!=null){LINKS_SALVOS[modo].lp=t.value.trim();try{localStorage.setItem("sdcv_lp_"+modo,t.value.trim())}catch(x){}agendarEst();return void lerProj()}
  if(t.dataset.cf){const k=t.dataset.cf;C[k]=k==="salas"?t.value.split(",").map(x=>x.trim()).filter(Boolean):k==="dataOnline"?t.value.trim():Math.max(0,+t.value);if(k==="salas"&&!C.salas.length)C.salas=["Sala 1"]}
@@ -718,13 +779,25 @@ let PRF={},QP=new Map(),preT=null,estT=null;
 const preK=()=>"sdcv_pre_"+modo,agora=()=>new Date().toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"});
 const postAv=(m,o)=>chamar(m,o,true);
 function carPre(){try{PRF=JSON.parse(localStorage.getItem(preK()))||{}}catch(e){PRF={}}if(syncAv()){lerEstSheet();if(modo==="SEMCITEC")lerPreSheet()}}
-const salvarPre=()=>{try{localStorage.setItem(preK(),JSON.stringify(PRF))}catch(e){}if(modo==="SEMCITEC"&&syncAv()){clearTimeout(preT);preT=setTimeout(enviarPre,1000)}};
-async function enviarPre(){try{sav("Gravando a pré-avaliação na planilha...");const j=await postAv("SEMCITEC",{acao:"salvarPre",itens:Object.entries(PRF).map(([id,v])=>({id,...v}))});sav(`Pré-avaliação gravada na planilha (${j.n} projeto(s) travados).`,"ok")}catch(e){sav("⚠ Pré-avaliação NÃO gravada na planilha: "+e.message,"er")}}
-async function lerPreSheet(){const m=modo;try{const j=await postAv(m,{acao:"lerPre"});if(m!==modo)return;
- if(j.itens.length){PRF={};j.itens.forEach(i=>PRF[i.id]={nome:i.nome,inst:i.inst,email:i.email,t:i.t,pi:i.pi,em:i.em});try{localStorage.setItem(preK(),JSON.stringify(PRF))}catch(e){}agendarCalc()}else if(Object.keys(PRF).length)enviarPre();
- sav("Pré-avaliação sincronizada com a planilha.","ok")}catch(e){sav("⚠ Não consegui ler a pré-avaliação da planilha: "+e.message,"er");ES.a=false;indSave()}}
-function agendarEst(){if(!syncAv())return;clearTimeout(estT);estT=setTimeout(async()=>{try{await postAv(modo,{acao:"salvarEstado",modo,estado:{cfg:CFG[modo],man:MANV,grade:GRADE_STATE,mail:CFG[modo].emailTemplates,links:{lp:LINKS_SALVOS[modo].lp,lr:LINKS_SALVOS[modo].lr}}});ES.a=false;indSave()}catch(e){sav("⚠ Configurações e ajustes NÃO gravados na planilha: "+e.message,"er")}},1500)}
-async function lerEstSheet(){const m=modo;try{const j=await postAv(m,{acao:"lerEstado",modo:m});if(m!==modo)return;if(!j.estado){agendarEst();return}Object.assign(CFG[m],j.estado.cfg||{});if(j.estado.mail)CFG[m].emailTemplates=j.estado.mail;if(j.estado.links){if(j.estado.links.lp)LINKS_SALVOS[m].lp=j.estado.links.lp;if(j.estado.links.lr!==undefined)LINKS_SALVOS[m].lr=j.estado.links.lr}MANV=j.estado.man||{};GRADE_STATE=Object.assign({locked:false,lockedAt:"",version:0,priority:{},rooms:{},snapshotMan:{}},j.estado.grade||{});try{localStorage.setItem("sdcv_cfg",JSON.stringify(CFG));localStorage.setItem("sdcv_lp_"+m,LINKS_SALVOS[m].lp||"");localStorage.setItem(manK(),JSON.stringify(MANV));localStorage.setItem(gradeK(),JSON.stringify(GRADE_STATE))}catch(e){}drawCfg();drawH();drawG();agendarCalc()}catch(e){sav("⚠ Não consegui ler as configurações da planilha: "+e.message,"er");ES.a=false;indSave()}}
+const salvarPre=()=>{try{localStorage.setItem(preK(),JSON.stringify(PRF))}catch(e){}if(modo==="SEMCITEC"&&syncAv()){prePend=true;clearTimeout(preT);preT=setTimeout(enviarPre,1000)}};
+async function enviarPre(){try{sav("Gravando a pré-avaliação na planilha...");const j=await postAv("SEMCITEC",{acao:"salvarPre",itens:Object.entries(PRF).map(([id,v])=>({id,...v}))});prePend=false;sav(`Pré-avaliação gravada na planilha (${j.n} projeto(s) travados).`,"ok")}catch(e){sav("⚠ Pré-avaliação NÃO gravada na planilha: "+e.message,"er")}}
+async function lerPreSheet(poll){const m=modo;if(poll&&prePend)return false;try{const j=await postAv(m,{acao:"lerPre"});if(m!==modo)return false;
+ const sg=hash53(JSON.stringify(j.itens||[])),k="pre|"+m;if(poll&&(SIGS.get(k)===sg||prePend))return false;SIGS.set(k,sg);
+ if(j.itens.length){const igual=j.itens.length===Object.keys(PRF).length&&j.itens.every(i=>{const p=PRF[i.id];return p&&p.nome===i.nome&&p.inst===i.inst&&p.email===i.email&&p.t===i.t&&p.pi===i.pi&&p.em===i.em});
+  if(poll&&igual)return false;
+  PRF={};j.itens.forEach(i=>PRF[i.id]={nome:i.nome,inst:i.inst,email:i.email,t:i.t,pi:i.pi,em:i.em});try{localStorage.setItem(preK(),JSON.stringify(PRF))}catch(e){}agendarCalc();if(poll)return"pré-avaliação"}
+ else if(!poll&&Object.keys(PRF).length)enviarPre();
+ if(!poll)sav("Pré-avaliação sincronizada com a planilha.","ok");return false}
+ catch(e){if(poll)throw e;sav("⚠ Não consegui ler a pré-avaliação da planilha: "+e.message,"er");ES.a=false;indSave()}}
+const estadoLocal=()=>({cfg:CFG[modo],man:MANV,grade:GRADE_STATE,mail:CFG[modo].emailTemplates,links:{lp:LINKS_SALVOS[modo].lp,lr:LINKS_SALVOS[modo].lr}});
+function agendarEst(){if(!syncAv())return;estPend=true;estV++;clearTimeout(estT);estT=setTimeout(enviarEst,1500)}
+async function enviarEst(){clearTimeout(estT);const m=modo,v=estV,estado=JSON.parse(JSON.stringify(estadoLocal()));try{await postAv(m,{acao:"salvarEstado",modo:m,estado});if(v===estV)estPend=false;ES.a=false;indSave()}catch(e){sav("⚠ Configurações e ajustes NÃO gravados na planilha: "+e.message,"er")}}
+async function lerEstSheet(poll){const m=modo,bloq=()=>estPend||ES.a||editandoEm("#cfgBody,.mailbox,#gh");try{if(poll&&bloq())return false;const j=await postAv(m,{acao:"lerEstado",modo:m});if(m!==modo)return false;
+ const sg=hash53(JSON.stringify(j.estado||null)),k="est|"+m;if(poll){if(SIGS.get(k)===sg||bloq())return false}SIGS.set(k,sg);
+ if(!j.estado){agendarEst();return false}
+ if(poll&&hash53(JSON.stringify(estadoLocal()))===sg)return false;
+ Object.assign(CFG[m],j.estado.cfg||{});if(j.estado.mail)CFG[m].emailTemplates=j.estado.mail;if(j.estado.links){if(j.estado.links.lp)LINKS_SALVOS[m].lp=j.estado.links.lp;if(j.estado.links.lr!==undefined)LINKS_SALVOS[m].lr=j.estado.links.lr}MANV=j.estado.man||{};GRADE_STATE=Object.assign({locked:false,lockedAt:"",version:0,priority:{},rooms:{},snapshotMan:{}},j.estado.grade||{});try{localStorage.setItem("sdcv_cfg",JSON.stringify(CFG));localStorage.setItem("sdcv_lp_"+m,LINKS_SALVOS[m].lp||"");localStorage.setItem(manK(),JSON.stringify(MANV));localStorage.setItem(gradeK(),JSON.stringify(GRADE_STATE))}catch(e){}drawCfg();drawH();drawG();agendarCalc();return poll?"configurações":false}
+ catch(e){if(poll)throw e;sav("⚠ Não consegui ler as configurações da planilha: "+e.message,"er");ES.a=false;indSave()}}
 function drawQ(){const el=$("pr_g"),pg=GRD&&GRD.pg;
  if(!pg){$("pr_bar").hidden=true;el.innerHTML='<p class="mut" style="padding:8px">Sem dados ainda: carregue os projetos em Avaliação e os avaliadores (SEMCITEC).</p>';return}
  $("pr_bar").hidden=false;const pa=CFG.SEMCITEC.porAval,all=[...pg.cols.flatMap(c=>c.pr),...pg.sem],nf=all.filter(p=>!PRF[p.id]&&pg.cols.some(c=>c.pr.includes(p))).length,dv=$("pr_a").value;
@@ -849,4 +922,26 @@ $("qv").oninput=drawV;
 $("saveInd").style.cursor="pointer";$("saveInd").onclick=detalheSave;
 $("bPing").onclick=async()=>{const o=[];for(const av of[false,true]){const nm=av?"Avaliadores":"Projetos";try{const j=await chamar(modo,{acao:"ping"},av);const d=av?j.avaliadores:j.projetos;if(!d)throw new Error(av?"o endereço de avaliadores não é um script de avaliadores (ou é versão antiga)":"o endereço de projetos não é um script de projetos (ou é versão antiga)");o.push(nm+": OK — "+d.planilha+" / aba "+d.aba+(!av&&d.temColunaId===false?" (SEM coluna 'id da submissão')":""))}catch(e){o.push(nm+": FALHOU — "+e.message)}}alert(o.join("\n"))};
 setModo("SEMCITEC");
+// ===== MOTOR DA ATUALIZAÇÃO AUTOMÁTICA (a cada 10 s) =====
+// Planilhas lidas por CSV (projetos, excluídos, avaliadores, recomendações, modelos de e-mail): a cada ciclo.
+// Leituras via Apps Script (configurações, pré-avaliação, status de e-mail): a cada AUTO.scriptCada ciclos, para não gastar a cota do Google.
+function pintarAuto(rodando){const el=$("autoInd");if(!el)return;
+ if(!AUTO.on){el.textContent="⏸ Auto desligado";el.style.color="var(--mut)";el.title="Clique para ligar a atualização automática (10 s)";return}
+ el.textContent=rodando?"↻ atualizando...":(AUTO.err?"⚠ Auto 10s · falha":"↻ Auto 10s · "+(AUTO.ult||"aguardando"));el.style.color=AUTO.err?"var(--er)":"var(--mut)";
+ el.title=(AUTO.err?"Falha: "+AUTO.err+"\n":"")+(AUTO.msg||"Nenhuma mudança detectada desde a última carga")+"\nClique para pausar/retomar"}
+async function rodar(k,f,erros,limita){if(limita&&(FAIL[k]||0)>=3)return null;try{const r=await f();FAIL[k]=0;return r}catch(e){FAIL[k]=(FAIL[k]||0)+1;erros.push(k+": "+(e&&e.message||e));return null}}
+async function tickAuto(manual){if(AUTO.run)return;AUTO.run=true;pintarAuto(true);const t0=Date.now(),erros=[];
+ try{if(manual)Object.keys(FAIL).forEach(k=>FAIL[k]=0);
+  const doScripts=manual||AUTO.ciclo++%AUTO.scriptCada===0,jobs=[["projetos",atualizarProj],["avaliadores",atualizarAval],["recomendações",atualizarRec],["modelos",atualizarModelos]];
+  if(doScripts){if(syncAv()){jobs.push(["configurações",()=>lerEstSheet(true),1]);if(modo==="SEMCITEC")jobs.push(["pré-avaliação",()=>lerPreSheet(true),1])}if(syncOn())jobs.push(["status de e-mail",()=>lerEmailStatus(true),1])}
+  const rs=await Promise.all(jobs.map(([k,f,l])=>rodar(k,f,erros,l))),mud=rs.filter(x=>typeof x==="string");
+  AUTO.ult=horaAgora();AUTO.err=erros.join(" | ");if(mud.length)AUTO.msg=AUTO.ult+" — "+mud.join("; ")}
+ catch(e){AUTO.err=String(e&&e.message||e)}
+ finally{AUTO.run=false;pintarAuto();agendarAuto(Math.max(1000,AUTO.ms-(Date.now()-t0)))}}
+function agendarAuto(ms){clearTimeout(AUTO.t);if(!AUTO.on)return;AUTO.t=setTimeout(()=>{if(document.hidden){agendarAuto(AUTO.ms);return}tickAuto()},ms)}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&AUTO.on){clearTimeout(AUTO.t);tickAuto()}});
+$("autoInd").onclick=()=>{AUTO.on=!AUTO.on;try{localStorage.setItem("sdcv_auto",AUTO.on?"1":"0")}catch(e){}pintarAuto();if(AUTO.on)tickAuto();else clearTimeout(AUTO.t)};
+$("autoNow").onclick=()=>{clearTimeout(AUTO.t);tickAuto(true)};
+try{AUTO.on=localStorage.getItem("sdcv_auto")!=="0"}catch(e){}
+pintarAuto();agendarAuto(3000);
 </script></body></html>
