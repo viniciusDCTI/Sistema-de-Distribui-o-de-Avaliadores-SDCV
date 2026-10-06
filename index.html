@@ -3,6 +3,7 @@
 <title>Sistema de Distribuição de Avaliadores SDCV</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root{--ink:#16263b;--mut:#5b6b80;--line:#d7dfea;--bg:#eef2f8;--ac:#1d5fd1;--ok:#1a7f4b;--er:#b3261e}
 *{box-sizing:border-box}body{margin:0;font:15px/1.5 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
@@ -45,6 +46,15 @@ details.hint{margin:4px 0 8px}details.hint summary{cursor:pointer;color:var(--ac
 .g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}.bar input[type=date],.bar input[type=time]{flex:none;min-width:0;width:auto}
 @media(max-width:800px){.app{display:block}#side{position:static;width:auto;height:auto}}
 [hidden]{display:none!important}
+.avcard{background:#f7faff;border:1px solid var(--line);border-radius:8px;padding:8px;display:flex;flex-direction:column;min-height:120px}
+.avhead{display:flex;align-items:center;justify-content:space-between;gap:6px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.avhead h3{margin:0;font-size:.95rem;line-height:1.25}
+.wa-btn{white-space:nowrap;padding:4px 7px;font-size:.75rem;border-color:var(--ok);color:var(--ok);background:#fff}
+.wa-btn:hover{background:#edf9f2}
+.avshot{background:#f7faff}
+.missing-fold{margin-top:0;background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px}
+.missing-fold summary{cursor:pointer;font-weight:700;color:var(--er)}
+
 .board{display:flex;gap:10px;overflow-x:auto;align-items:flex-start;padding-bottom:8px}.col{flex:none;width:290px;background:#f7faff;border:1px solid var(--line);border-radius:8px;padding:8px}
 .col h3{font-size:.95rem;margin:0}.sala{border-top:1px solid var(--line);margin-top:8px;padding-top:6px}.pj{display:flex;gap:4px;font-size:.8rem;padding:2px 0;border-bottom:1px dotted var(--line)}.pj span{flex:1}.avn{font-size:.8rem;color:var(--mut)}
 .hsel summary{cursor:pointer;color:var(--ac);white-space:nowrap}.hlist{max-height:170px;overflow:auto;min-width:210px}.hlist label{display:flex;gap:6px;font-weight:400;margin:2px 0;font-size:.8rem}.hlist input{width:auto}
@@ -90,7 +100,7 @@ details.hint{margin:4px 0 8px}details.hint summary{cursor:pointer;color:var(--ac
 <div class="bar"><input type="date" id="hd" aria-label="Data"><input type="time" id="h1" aria-label="Início"><input type="time" id="h2" aria-label="Fim"><label style="display:flex;gap:6px;align-items:center;margin:0;font-weight:400"><input type="checkbox" id="hall" style="width:auto"> dar a todos os avaliadores</label><button id="hadd">+ Adicionar horário</button></div>
 <div class="tw" id="gh"></div></section>
 <section class="card hid" id="sG"><h2>Grade de horários <span class="mut">avaliadores e projetos por horário</span></h2>
-<details class="hint"><summary>ℹ Como funciona</summary><p class="mut">Cada coluna é um horário ativo, com as salas, os avaliadores disponíveis e os projetos distribuídos. Para mover um projeto, digite o nome (ou ID) em "Projeto", escolha o destino e clique em Aplicar; o botão ↪ ao lado de cada projeto preenche o campo. Na FECEG, cada coluna é um turno presencial (2 avaliadores por projeto) e a coluna Online é automática: só os turnos presenciais podem ser ajustados. Os ajustes ficam salvos neste navegador e entram no Excel. "Automático" devolve o projeto à distribuição padrão.</p></details>
+<details class="hint"><summary>ℹ Como funciona</summary><p class="mut">Cada coluna é um horário ativo, com as salas, os avaliadores disponíveis e os projetos distribuídos. Para mover um projeto, digite o nome (ou ID) em "Projeto", escolha o destino e clique em Aplicar; o botão ↪ ao lado de cada projeto preenche o campo. Na FECEG, cada projeto recebe 3 avaliadores presenciais. A avaliação Online não entra na distribuição. Só os turnos presenciais podem ser ajustados. Os ajustes ficam salvos neste navegador e entram no Excel. "Automático" devolve o projeto à distribuição padrão.</p></details>
 <div id="mvbar" class="bar" hidden><input id="mvp" list="dlp" placeholder="Projeto (nome ou ID)" aria-label="Projeto"><datalist id="dlp"></datalist><select id="mvd" aria-label="Destino"></select><button id="mvb" class="p">Aplicar</button><button id="mvc">Limpar ajustes</button></div>
 <div id="gg"></div></section>
 <section class="card hid" id="sQ"><h2>Pré-avaliação <span class="mut">projetos em Avaliação × avaliadores da pré</span></h2>
@@ -99,7 +109,7 @@ details.hint{margin:4px 0 8px}details.hint summary{cursor:pointer;color:var(--ac
 <div id="pr_bar" class="bar" hidden><input id="pr_p" list="pr_dl" placeholder="Projeto (nome ou ID)" aria-label="Projeto"><datalist id="pr_dl"></datalist><select id="pr_a" aria-label="Avaliador"></select><button id="pr_b" class="p">Aplicar</button></div>
 <div id="pr_g"></div></section>
 <section class="card hid" id="sV"><h2>Projetos por avaliador <span class="mut">avaliadores × projetos por período de disponibilidade</span></h2>
-<details class="hint"><summary>ℹ Como funciona</summary><p class="mut">Cada coluna é um avaliador da FECEG. Dentro dela aparecem os períodos em que ele tem disponibilidade (Online e turnos presenciais) e os projetos que ele avalia em cada um. Cada projeto deve ter 3 avaliadores (1 online + 2 presenciais): o indicador n/3 mostra quantos o projeto tem de fato e fica em vermelho quando falta alguém. A última coluna reúne os projetos com menos de 3 avaliadores. Esta aba é só de consulta e acompanha a distribuição automaticamente; para mover um projeto de turno, use a aba Grade de horários.</p></details>
+<details class="hint"><summary>ℹ Como funciona</summary><p class="mut">Cada coluna é um avaliador da FECEG. Dentro dela aparecem os turnos presenciais e os projetos que ele avalia em cada um. Cada projeto deve ter 3 avaliadores presenciais: o indicador n/3 mostra quantos ele tem de fato e fica em vermelho quando falta alguém. A coluna de projetos com menos de 3 avaliadores fica minimizada por padrão. O botão 📸 em cada avaliador captura todos os projetos daquele avaliador e tenta compartilhar a imagem pelo WhatsApp; se o navegador não permitir compartilhamento direto, a imagem é copiada para a área de transferência e o WhatsApp é aberto para você colar, ou o PNG é baixado como alternativa. Esta aba acompanha a distribuição automaticamente; para mover um projeto de turno, use a aba Grade de horários.</p></details>
 <div class="bar"><input id="qv" placeholder="Buscar avaliador ou projeto..." aria-label="Buscar avaliador ou projeto"><span id="vs" class="mut"></span></div>
 <div id="vg"></div></section>
 <section class="card hid" id="sC"><h2>Configurações</h2><div id="cfgBody"></div>
@@ -191,10 +201,10 @@ let HCOLS=[];
 function dispF(r,ks,kd){const cs=ks.filter(k=>{const f=fold(k);return /dias|disponib|horario|turno|periodo|presencial|online|agenda/.test(f)&&!/mail|nome|institui|isntitui|empresa|areas|interesse|aprovado|telefone|carimbo/.test(f)}),ord=kd&&cs.includes(kd)?[kd,...cs.filter(k=>k!==kd)]:cs;HCOLS=ord;
  return ord.map(k=>{const v=String(r[k]??"").trim();if(!v)return"";const fk=fold(k);if(/online/.test(fk)&&!/presencial|\bou\b/.test(fk)&&!/online/i.test(v)){return/^(nao|n|0|false|-)$/.test(fold(v))?"":(/\d{1,2}\/\d{1,2}/.test(v)?"Online: "+v:"Online")}return v}).filter(Boolean).join(" | ")}
 function prepararAval(rows){if(!rows.length)return[];const ks=Object.keys(rows[0]),f=fn=>ks.find(fn),kn=ks.find(k=>k.includes("nome completo"))||f(k=>k.includes("nome")),ki=f(k=>k.includes("institui")||k.includes("isntitui")),kc=f(k=>k.includes("empresa")),
- kd=f(k=>k.includes("dias")||k.includes("disponib")||fold(k).includes("horario")),ke=f(k=>k.includes("mail")),kA=f(k=>fold(k).trim()==="aprovado"),kI=f(k=>k.includes("interesse")&&k.includes("pre")),kR=f(k=>fold(k).includes("areas")),seen=new Set();
+ kd=f(k=>k.includes("dias")||k.includes("disponib")||fold(k).includes("horario")),ke=f(k=>k.includes("mail")),kp=f(k=>/telefone|celular|whatsapp/.test(fold(k))),kA=f(k=>fold(k).trim()==="aprovado"),kI=f(k=>k.includes("interesse")&&k.includes("pre")),kR=f(k=>fold(k).includes("areas")),seen=new Set();
  // Aprovado: preenchido (ID do aprovado) = aprovado; interessepreselecaosemcitec = "sim" = quer fazer a pré-avaliação. Sem essas colunas (planilhas antigas/FECEG) todos valem.
  const tem=v=>{const x=fold(v).trim();return x!==""&&!/^(nao|0|false|nan|null|-)$/.test(x)},sim=v=>/^(sim|s|1|true|x)$/.test(fold(v).trim());
- return rows.map(r=>{const ap=kA?tem(r[kA]):true;return{nome:titleCase(r[kn]),inst:mapInst((ki&&String(r[ki]||"").trim())||(kc&&r[kc])||""),disp:modo==="FECEG"?dispF(r,ks,kd):String(r[kd]||""),email:r[ke]||"",areas:String(kR?r[kR]||"":""),aprov:ap,pre:ap&&(kI?sim(r[kI]):true)}}).filter(a=>a.nome&&!seen.has(a.nome+a.inst)&&seen.add(a.nome+a.inst))}
+ return rows.map(r=>{const ap=kA?tem(r[kA]):true;return{nome:titleCase(r[kn]),inst:mapInst((ki&&String(r[ki]||"").trim())||(kc&&r[kc])||""),disp:modo==="FECEG"?dispF(r,ks,kd):String(r[kd]||""),email:r[ke]||"",telefone:kp?String(r[kp]||"").trim():"",areas:String(kR?r[kR]||"":""),aprov:ap,pre:ap&&(kI?sim(r[kI]):true)}}).filter(a=>a.nome&&!seen.has(a.nome+a.inst)&&seen.add(a.nome+a.inst))}
 function mapaRec(r){if(!r.length)return{};const ks=Object.keys(r[0]),ki=ks.find(k=>k.includes("id da submiss"))||ks.find(k=>/(^|\W)id(\W|$)/.test(k))||ks[0],kr=ks.find(k=>k.includes("recomend"))||ks.find(k=>k.includes("status"))||ks[1],m={};
  r.forEach(x=>{const i=String(x[ki]??"").trim();if(i)m[i]=String(x[kr]??"").trim()||"NÃO AVALIADO"});return m}
 
@@ -273,28 +283,80 @@ function parseTurnos(t){const s=String(t??""),out=[],seen=new Set(),on=String(CF
    add({key:`${dd}/${mm}/${y}_${per}`,label:`${dd}/${mm}/${y} ${per}`,tx:ds.length===1?part:`${dd}/${mm}/${y} ${rest.replace(/\s+/g," ").trim()}`,hora,per,ord:`${y}${mm}${dd}${{dia:0,"manhã":1,tarde:2,noite:3}[per]}`})})});
  return out}
 function turnos(d){return parseTurnos(d).map(x=>x.key)}
-function feceg(P,A,porAval){const{porTurno}=CFG.FECEG,w=wb(),avisos=[],GR=[];A.forEach(a=>a.t=turnos(a.disp));
- {const sh=A.filter(a=>!a.t.length).length;if(sh)avisos.push(HCOLS.length?`${sh} avaliador(es) sem horário reconhecido (coluna${HCOLS.length>1?"s":""} lida${HCOLS.length>1?"s":""}: ${HCOLS.join(", ")}). Edite na aba Avaliadores.`:`${sh} avaliador(es) sem horário: não encontrei coluna de disponibilidade na planilha (cabeçalho com "disponibilidade", "horário", "dias" ou "turno"). Edite na aba Avaliadores.`)}
- const dist=(pool,avs,n,max)=>{const c=new Map(),out=[];for(const p of pool){if(out.length>=max)break;const sel=[];
-  for(const a of avs.filter(a=>!conf(p,a.inst)&&(c.get(a.nome)||0)<porAval).sort((x,y)=>(c.get(x.nome)||0)-(c.get(y.nome)||0))){if(sel.length>=n)break;sel.push(a);c.set(a.nome,(c.get(a.nome)||0)+1)}
-  if(sel.length)out.push({...p,avals:sel})}return out};
- const ONL=CFG.FECEG.onlineOn!==false,on=ONL?A.filter(a=>a.t.includes("online")):[],chaves=[...new Set(A.flatMap(a=>a.t).filter(t=>t!=="online"&&!CFG.FECEG.off.includes(t)))].sort(),online=on.length?dist(P,on,1,P.length):[];
- if(ONL&&!on.length)avisos.push("Nenhum avaliador online encontrado.");else if(ONL&&online.length<P.length)avisos.push(`Online: ${P.length-online.length} projeto(s) sem avaliador (${on.length} avaliadores × ${porAval} = ${on.length*porAval} vagas).`);
+function feceg(P,A,porAval){
+ const{porTurno}=CFG.FECEG,w=wb(),avisos=[],GR=[];
+ A.forEach(a=>a.t=turnos(a.disp));
+ {
+  const sh=A.filter(a=>!a.t.length).length;
+  if(sh)avisos.push(HCOLS.length?`${sh} avaliador(es) sem horário reconhecido (coluna${HCOLS.length>1?"s":""} lida${HCOLS.length>1?"s":""}: ${HCOLS.join(", ")}). Edite na aba Avaliadores.`:`${sh} avaliador(es) sem horário: não encontrei coluna de disponibilidade na planilha (cabeçalho com "disponibilidade", "horário", "dias" ou "turno"). Edite na aba Avaliadores.`)
+ }
+ // FECEG: a avaliação Online é desconsiderada. Cada projeto recebe 3 avaliadores presenciais.
+ const dist=(pool,avs,n,max)=>{
+  const c=new Map(),out=[];
+  for(const p of pool){
+   if(out.length>=max)break;
+   const sel=[];
+   for(const a of avs.filter(a=>!conf(p,a.inst)&&(c.get(a.nome)||0)<porAval)
+     .sort((x,y)=>(c.get(x.nome)||0)-(c.get(y.nome)||0))){
+    if(sel.length>=n)break;
+    sel.push(a)
+   }
+   if(sel.length===n){
+    out.push({...p,avals:sel});
+    sel.forEach(a=>c.set(a.nome,(c.get(a.nome)||0)+1));
+   }
+  }
+  return out
+ };
+ const chaves=[...new Set(A.flatMap(a=>a.t).filter(t=>t!=="online"&&!CFG.FECEG.off.includes(t)))].sort();
  if(!chaves.length)avisos.push("Nenhum turno presencial encontrado na disponibilidade (esperado: data dd/mm/aa e horário, ex.: 21/10/25 08hs às 12hs).");
- const nm=a=>a?a.nome:"NÃO ALOCADO",ni=a=>a?a.inst:"NÃO ALOCADO",lista=l=>l.map(a=>`${a.nome} (${a.inst})`).join("; ")||"NENHUM AVALIADOR",
- colP=p=>({"ID Projeto":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst});
- if(ONL)w.add("Online",[{"Sala":"Avaliação Online","Tipo":"AVALIADORES","Detalhe":lista(on)},...online.map(p=>({"Sala":"Avaliação Online","Tipo":"PROJETO",...colP(p),"Avaliador":nm(p.avals[0]),"Instituição Avaliador":ni(p.avals[0]),...p.extra}))]);
+ const nm=a=>a?a.nome:"NÃO ALOCADO",
+       ni=a=>a?a.inst:"NÃO ALOCADO",
+       lista=l=>l.map(a=>`${a.nome} (${a.inst})`).join("; ")||"NENHUM AVALIADOR",
+       colP=p=>({"ID Projeto":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst});
  const aloc=new Set(),pres={};
- chaves.forEach(k=>{const avs=A.filter(a=>a.t.includes(k)),ds=dist([...P.filter(p=>!aloc.has(p.id)&&MAN()[p.id]&&MAN()[p.id].l===k),...P.filter(p=>!aloc.has(p.id)&&!MAN()[p.id])],avs,2,CFG.FECEG.capSlot[k]??porTurno);GR.push({k,t:k.replace("_"," "),av:avs,pr:ds});ds.forEach(p=>{aloc.add(p.id);pres[p.id]=p.avals});
-  w.add(k.replace("_"," "),[{"Sala":"Salão de Artes","Tipo":"AVALIADORES","Detalhe":lista(avs)},...ds.map(p=>({"Sala":"Salão de Artes","Tipo":"PROJETO",...colP(p),"Avaliador 1":nm(p.avals[0]),"Instituição Avaliador 1":ni(p.avals[0]),"Avaliador 2":nm(p.avals[1]),"Instituição Avaliador 2":ni(p.avals[1]),...p.extra}))])});
+ chaves.forEach(k=>{
+  const avs=A.filter(a=>a.t.includes(k)),
+        pool=[
+          ...P.filter(p=>!aloc.has(p.id)&&MAN()[p.id]&&MAN()[p.id].l===k),
+          ...P.filter(p=>!aloc.has(p.id)&&!MAN()[p.id])
+        ],
+        ds=dist(pool,avs,3,CFG.FECEG.capSlot[k]??porTurno);
+  GR.push({k,t:k.replace("_"," "),av:avs,pr:ds});
+  ds.forEach(p=>{aloc.add(p.id);pres[p.id]=p.avals});
+  w.add(k.replace("_"," "),[
+    {"Sala":"Salão de Artes","Tipo":"AVALIADORES","Detalhe":lista(avs)},
+    ...ds.map(p=>({
+      "Sala":"Salão de Artes","Tipo":"PROJETO",...colP(p),
+      "Avaliador 1":nm(p.avals[0]),"Instituição Avaliador 1":ni(p.avals[0]),
+      "Avaliador 2":nm(p.avals[1]),"Instituição Avaliador 2":ni(p.avals[1]),
+      "Avaliador 3":nm(p.avals[2]),"Instituição Avaliador 3":ni(p.avals[2]),
+      ...p.extra
+    }))
+  ]);
+ });
  const nd=P.filter(p=>!aloc.has(p.id));
- w.add("Projetos Não Distribuídos",nd.map(p=>({"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,"Motivo":"Não alocado em nenhum turno presencial",...p.extra})));
- const om=new Map(online.map(p=>[p.id,p.avals[0]]));
- w.add("Resumo Completo",P.map(p=>{const o=om.get(p.id),r=pres[p.id]||[];return{"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,...(ONL?{"Avaliador Online":nm(o),"Instituição Avaliador Online":ni(o)}:{}),
-  "Avaliador Presencial 1":nm(r[0]),"Instituição Avaliador Presencial 1":ni(r[0]),"Avaliador Presencial 2":nm(r[1]),"Instituição Avaliador Presencial 2":ni(r[1]),"Total Avaliadores":(o?1:0)+r.length,...p.extra}}));
- if(nd.length)avisos.push(`${nd.length} projeto(s) sem turno presencial.`);
- return{g:{f:1,cols:GR,on,online,nd,onl:ONL},nd,w:w.o,avisos,stats:{"Projetos":P.length,"Avaliadores":A.length,...(ONL?{"Com avaliação online":online.length}:{}),"Com turno presencial":aloc.size}}}
-
+ w.add("Projetos Não Distribuídos",nd.map(p=>({
+  "ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,
+  "Motivo":"Não alocado em nenhum turno presencial",...p.extra
+ })));
+ w.add("Resumo Completo",P.map(p=>{
+  const r=pres[p.id]||[];
+  return{
+   "ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,
+   "Avaliador Presencial 1":nm(r[0]),"Instituição Avaliador Presencial 1":ni(r[0]),
+   "Avaliador Presencial 2":nm(r[1]),"Instituição Avaliador Presencial 2":ni(r[1]),
+   "Avaliador Presencial 3":nm(r[2]),"Instituição Avaliador Presencial 3":ni(r[2]),
+   "Total Avaliadores":r.length,...p.extra
+  }
+ }));
+ if(nd.length)avisos.push(`${nd.length} projeto(s) sem 3 avaliadores presenciais/turno disponível.`);
+ return{
+  g:{f:1,cols:GR,on:[],online:[],nd,onl:false},
+  nd,w:w.o,avisos,
+  stats:{"Projetos":P.length,"Avaliadores":A.length,"Com 3 avaliadores presenciais":P.filter(p=>(pres[p.id]||[]).length>=3).length,"Com turno presencial":aloc.size}
+ }
+}
 let P=[],O=[],A=[],cur=null;const sq={p:0,a:0};
 let FILA=[],SELP=[],PROJ_OK=false,filaT=null;const filaSig={};
 const recK=()=>"sdcv_rec_"+modo,lerRec=()=>{try{return new Set(JSON.parse(localStorage.getItem(recK()))||[])}catch(e){return new Set()}},
@@ -588,23 +650,134 @@ $("pr_t").onclick=()=>{GRD.pg.cols.forEach(c=>c.pr.forEach(p=>{if(!PRF[p.id])tra
 $("pr_r").onclick=()=>{if(!confirm("Refazer do zero apaga TODAS as travas e redistribui a pré-avaliação. Continuar?"))return;PRF={};salvarPre();agendarCalc()};
 // ===== PROJETOS POR AVALIADOR (FECEG): uma coluna por avaliador, projetos por período de disponibilidade =====
 const ALVO=3,kAv=a=>a.nome+"|"+a.inst;
-function drawV(){const el=$("vg");if(!el)return;const g=GRD&&GRD.g&&GRD.g.f?GRD.g:null;
- if(modo!=="FECEG"||!g){$("vs").textContent="";el.innerHTML='<p class="mut" style="padding:8px">Sem dados ainda: carregue os projetos e os avaliadores (FECEG).</p>';return}
- const PER=[...(g.onl?[{k:"online",t:"Online",av:g.on,pr:g.online}]:[]),...g.cols.map(c=>({k:c.k,t:c.t,av:c.av,pr:c.pr}))],by=new Map(),tot=new Map(),todos=new Map();
- PER.forEach(x=>x.pr.forEach(p=>{todos.set(p.id,p);if(!tot.has(p.id))tot.set(p.id,new Map());(p.avals||[]).forEach(a=>{tot.get(p.id).set(kAv(a),a);if(!by.has(kAv(a)))by.set(kAv(a),new Map());const m=by.get(kAv(a));if(!m.has(x.k))m.set(x.k,[]);m.get(x.k).push(p)})}));
+
+function normalizarWhatsApp(v){
+ const d=String(v||"").replace(/\D/g,"");
+ if(!d)return"";
+ if(d.startsWith("55")&&d.length>=12)return d;
+ if((d.length===10||d.length===11))return"55"+d;
+ return d;
+}
+
+async function compartilharAvaliador(idx){
+ const card=$("avcard-"+idx);
+ if(!card)return;
+ const a=card._avaliador||{};
+ const nome=a.nome||"avaliador";
+ const phone=normalizarWhatsApp(a.telefone);
+ const btn=card.querySelector(".wa-btn");
+ try{
+  if(typeof html2canvas!=="function")throw new Error("O módulo de captura de tela não foi carregado.");
+  if(btn)btn.disabled=true;
+  const canvas=await html2canvas(card,{
+   backgroundColor:"#f7faff",
+   scale:2,
+   useCORS:true,
+   logging:false,
+   onclone:doc=>{
+    const c=doc.getElementById("avcard-"+idx);
+    if(c)c.querySelectorAll(".wa-btn").forEach(x=>x.style.display="none");
+   }
+  });
+  const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/png"));
+  if(!blob)throw new Error("Não foi possível gerar a imagem.");
+  const file=new File([blob],`projetos-${nome.replace(/[^\wÀ-ÿ]+/g,"-")}.png`,{type:"image/png"});
+  const waUrl=phone?`https://wa.me/${phone}?text=${encodeURIComponent("Olá, "+nome+". Segue a sua distribuição de projetos para avaliação.")}`:"https://web.whatsapp.com/";
+  let compartilhado=false;
+
+  // Em dispositivos/navegadores com Web Share, permite escolher o WhatsApp e enviar a imagem.
+  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+   try{await navigator.share({files:[file],title:"Projetos para avaliação",text:"Projetos para avaliação - "+nome});compartilhado=true}catch(e){}
+  }
+
+  if(!compartilhado){
+   let copiou=false;
+   try{
+    if(navigator.clipboard&&window.ClipboardItem){
+     await navigator.clipboard.write([new ClipboardItem({"image/png":blob})]);
+     copiou=true;
+    }
+   }catch(e){}
+   const aEl=document.createElement("a");
+   aEl.href=URL.createObjectURL(blob);aEl.download=file.name;aEl.style.display="none";
+   document.body.appendChild(aEl);
+   if(!copiou)aEl.click();
+   setTimeout(()=>URL.revokeObjectURL(aEl.href),1500);
+   window.open(waUrl,"_blank","noopener");
+   st(copiou
+     ? `Imagem de ${nome} copiada. O WhatsApp foi aberto; cole a imagem (Ctrl+V) na conversa.`
+     : `Imagem de ${nome} salva como PNG. O WhatsApp foi aberto; anexe a imagem na conversa.`,"ok");
+  }else st(`Imagem de ${nome} compartilhada.`,"ok");
+ }catch(e){
+  st(`Não foi possível capturar ${nome}: ${e.message}`,"er");
+ }finally{if(btn)btn.disabled=false}
+}
+
+function drawV(){
+ const el=$("vg");if(!el)return;
+ const g=GRD&&GRD.g&&GRD.g.f?GRD.g:null;
+ if(modo!=="FECEG"||!g){
+  $("vs").textContent="";
+  el.innerHTML='<p class="mut" style="padding:8px">Sem dados ainda: carregue os projetos e os avaliadores (FECEG).</p>';
+  return
+ }
+ const PER=g.cols.map(c=>({k:c.k,t:c.t,av:c.av,pr:c.pr})),by=new Map(),tot=new Map(),todos=new Map();
+ PER.forEach(x=>x.pr.forEach(p=>{
+  todos.set(p.id,p);
+  if(!tot.has(p.id))tot.set(p.id,new Map());
+  (p.avals||[]).forEach(a=>{
+   tot.get(p.id).set(kAv(a),a);
+   if(!by.has(kAv(a)))by.set(kAv(a),new Map());
+   const m=by.get(kAv(a));
+   if(!m.has(x.k))m.set(x.k,[]);
+   m.get(x.k).push(p)
+  })
+ }));
  g.nd.forEach(p=>{if(!todos.has(p.id))todos.set(p.id,p)});
- const n=id=>tot.has(id)?tot.get(id).size:0,lista=[...todos.values()].sort(cmpId),ok=lista.filter(p=>n(p.id)>=ALVO).length,q=fold($("qv").value.trim()),
-  casaP=p=>!q||fold(p.id+" "+p.titulo).includes(q),
-  bd=p=>{const c=n(p.id);return`<span class="${c<ALVO?"bad":"mut"}">${c<ALVO?"⚠ ":""}${c}/${ALVO}</span>`},
-  pj=(p,a)=>{const outros=tot.has(p.id)?[...tot.get(p.id).values()].filter(x=>kAv(x)!==kAv(a)).map(x=>x.nome):[];
-   return`<div class="pj"><span><b>${esc(p.id)}</b> ${esc(p.titulo)} ${bd(p)}<div class="avn">${esc(p.inst)}${outros.length?" · com: "+esc(outros.join("; ")):""}</div></span></div>`};
- $("vs").textContent=`${ok} de ${lista.length} projeto(s) com ${ALVO} avaliadores`+(lista.length-ok?` · ${lista.length-ok} com menos de ${ALVO}`:"");
- const cols=[...A].sort((x,y)=>x.nome.localeCompare(y.nome,"pt-BR")).map(a=>{const m=by.get(kAv(a))||new Map(),ps=PER.filter(x=>x.av.some(b=>kAv(b)===kAv(a))||m.has(x.k)),np=[...m.values()].reduce((t,l)=>t+l.length,0);
-   return{a,m,ps,np,mostra:!q||fold(a.nome+" "+a.inst).includes(q)||[...m.values()].some(l=>l.some(casaP))}}).filter(c=>c.mostra),
-  falta=lista.filter(p=>n(p.id)<ALVO&&casaP(p));
- el.innerHTML='<div class="board">'+cols.map(c=>`<div class="col"><h3>${esc(c.a.nome)}</h3><div class="avn">${esc(c.a.inst)} · ${c.np} projeto(s)</div>`+
-  (c.ps.map(x=>{const l=c.m.get(x.k)||[];return`<div class="sala"><b>${esc(x.t)}</b> <span class="avn">(${l.length} proj.)</span>${l.map(p=>pj(p,c.a)).join("")||'<div class="avn">Sem projetos neste período</div>'}</div>`}).join("")||'<div class="avn">Sem horário reconhecido</div>')+"</div>").join("")+
-  `<div class="col"><h3>Menos de ${ALVO} avaliadores</h3><div class="avn">${falta.length} projeto(s)</div>${falta.map(p=>`<div class="pj"><span><b>${esc(p.id)}</b> ${esc(p.titulo)} ${bd(p)}<div class="avn">${esc(p.inst)}</div></span></div>`).join("")}</div></div>`}
+ const n=id=>tot.has(id)?tot.get(id).size:0,
+       lista=[...todos.values()].sort(cmpId),
+       ok=lista.filter(p=>n(p.id)>=ALVO).length,
+       q=fold($("qv").value.trim()),
+       casaP=p=>!q||fold(p.id+" "+p.titulo).includes(q),
+       bd=p=>{const c=n(p.id);return`<span class="${c<ALVO?"bad":"mut"}">${c<ALVO?"⚠ ":""}${c}/${ALVO}</span>`},
+       pj=(p,a)=>{const outros=tot.has(p.id)?[...tot.get(p.id).values()].filter(x=>kAv(x)!==kAv(a)).map(x=>x.nome):[];
+        return`<div class="pj"><span><b>${esc(p.id)}</b> ${esc(p.titulo)} ${bd(p)}<div class="avn">${esc(p.inst)}${outros.length?" · com: "+esc(outros.join("; ")):""}</div></span></div>`};
+ $("vs").textContent=`${ok} de ${lista.length} projeto(s) com ${ALVO} avaliadores presenciais`+(lista.length-ok?` · ${lista.length-ok} com menos de ${ALVO}`:"");
+
+ const cols=[...A].sort((x,y)=>x.nome.localeCompare(y.nome,"pt-BR")).map((a,idx)=>{
+  const m=by.get(kAv(a))||new Map(),
+        ps=PER.filter(x=>x.av.some(b=>kAv(b)===kAv(a))||m.has(x.k)),
+        np=[...m.values()].reduce((t,l)=>t+l.length,0),
+        mostra=!q||fold(a.nome+" "+a.inst).includes(q)||[...m.values()].some(l=>l.some(casaP));
+  return{a,m,ps,np,mostra,idx}
+ }).filter(c=>c.mostra);
+
+ const falta=lista.filter(p=>n(p.id)<ALVO&&casaP(p));
+
+ const cards=cols.map((c,idx)=>{
+  const aid="avcard-"+idx;
+  const card=`<div class="avcard" id="${aid}">
+   <div class="avhead">
+    <h3>${esc(c.a.nome)}</h3>
+    <button class="wa-btn" type="button" data-wa="${idx}" title="Capturar todos os projetos deste avaliador e preparar para envio pelo WhatsApp">📸 WhatsApp</button>
+   </div>
+   <div class="avn">${esc(c.a.inst)} · ${c.np} projeto(s)${c.a.telefone?" · "+esc(c.a.telefone):""}</div>
+   ${(c.ps.map(x=>{
+     const l=c.m.get(x.k)||[];
+     return`<div class="sala"><b>${esc(x.t)}</b> <span class="avn">(${l.length} proj.)</span>${l.map(p=>pj(p,c.a)).join("")||'<div class="avn">Sem projetos neste período</div>'}</div>`
+   }).join(""))||'<div class="avn">Sem horário reconhecido</div>'}
+  </div>`;
+  return card;
+ }).join("");
+
+ el.innerHTML='<div class="board">'+cards+
+  `<details class="missing-fold"><summary>Menos de ${ALVO} avaliadores — ${falta.length} projeto(s)</summary>`+
+  `<div style="margin-top:8px">${falta.map(p=>`<div class="pj"><span><b>${esc(p.id)}</b> ${esc(p.titulo)} ${bd(p)}<div class="avn">${esc(p.inst)}</div></span></div>`).join("")||'<div class="avn">Nenhum projeto pendente.</div>'}</div></details></div>`;
+
+ cols.forEach((c,idx)=>{const card=$("avcard-"+idx);if(card)card._avaliador=c.a});
+ el.querySelectorAll("[data-wa]").forEach(b=>b.addEventListener("click",()=>compartilharAvaliador(+b.dataset.wa)));
+}
+
 $("qv").oninput=drawV;
 setModo("SEMCITEC");
 </script></body></html>
