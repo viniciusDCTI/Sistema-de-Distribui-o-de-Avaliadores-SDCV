@@ -133,16 +133,15 @@ details.hint{margin:4px 0 8px}details.hint summary{cursor:pointer;color:var(--ac
 // ===== LINKS SALVOS: planilha de projetos fixa de cada núcleo =====
 const LINKS_SALVOS={SEMCITEC:{lp:"https://docs.google.com/spreadsheets/d/1ISTv8UmUl-6Qhzf6zfyHi6hGw1UBgzdt4kcRUOHNpTQ/edit?usp=drive_link",la:"https://docs.google.com/spreadsheets/d/1oiZZSgBFabz_yiXdmaoJuKF8nyu0NRXOYztpoKIX7g0/edit?usp=sharing",lr:""},FECEG:{lp:"https://docs.google.com/spreadsheets/d/1Zwdz0YqeqzLQ_t-KqQL_X6UKjQt-5A-Voq7ooB4JerE/edit?usp=sharing",la:"https://docs.google.com/spreadsheets/d/1t9cjFLS9uc4lKrjcHkwpoFbIWqVE9pZpn_-xSlVfS9U/edit?gid=998766160#gid=998766160",lr:""}};
 // ===== SINCRONIZAÇÃO DAS EXCLUSÕES COM A PLANILHA OFICIAL =====
-// URL (/exec) do Code.gs de projetos de cada núcleo. Vazio = sincronização desligada.
-// O token NÃO fica no arquivo: o site pede uma vez e guarda só neste navegador.
-const SYNC={SEMCITEC:{url:"https://script.google.com/macros/s/AKfycbyPTM0pjvoZyYHS0Rrp8aOB3-2ZLqur85wfBPslUvFjQXW4Mjw0g-fLdZCuSptxxwASdQ/exec",token:"Alice01@"},FECEG:{url:"https://script.google.com/macros/s/AKfycbwQrdTcmuw3Avv1IRVdNgc_LzIa4zQ5JNMglyQmK43Zdjn7Q7H7-4YqvlcuwKpSQRSa/exec",token:"Alice01@"}};
+// URL (/exec) do Code.gs de cada núcleo (único script: projetos + avaliadores + e-mails + pré-avaliação + estado + recusados). Sem senha. Vazio = sincronização desligada.
+const SYNC={SEMCITEC:{url:"https://script.google.com/macros/s/AKfycbyPTM0pjvoZyYHS0Rrp8aOB3-2ZLqur85wfBPslUvFjQXW4Mjw0g-fLdZCuSptxxwASdQ/exec"},FECEG:{url:"https://script.google.com/macros/s/AKfycbwQrdTcmuw3Avv1IRVdNgc_LzIa4zQ5JNMglyQmK43Zdjn7Q7H7-4YqvlcuwKpSQRSa/exec"}};
 const ES={p:false,a:false};let RPEND=0;
-let TOKP=false,ULT=null;const tok=()=>{let t="";try{t=(localStorage.getItem("sdcv_token")||"").trim()}catch(e){}if(!t&&!TOKP){TOKP=true;t=(prompt("Informe o token de acesso do Apps Script (fica salvo só neste navegador):")||"").trim();if(t)try{localStorage.setItem("sdcv_token",t)}catch(e){}}return t};
+let ULT=null;
 async function chamar(m,corpo,av){const c=(av?SYNCAV:SYNC)[m],onde=(av?"avaliadores":"projetos")+" · "+(corpo.acao||"?");
  try{if(!c||!c.url)throw new Error("endereço do script não configurado");
-  const r=await fetch(c.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({token:tok(),modo:m,...corpo})});
+  const r=await fetch(c.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({modo:m,...corpo})});
   const tx=await r.text();let j;try{j=JSON.parse(tx)}catch(e){throw new Error("o endereço não respondeu como o Code.gs (HTTP "+r.status+"). Confira se a implantação é App da Web com acesso 'Qualquer pessoa' e se a NOVA VERSÃO foi implantada.")}
-  if(!j.ok){if(/token/i.test(j.erro||"")){try{localStorage.removeItem("sdcv_token")}catch(e){}TOKP=false}throw new Error(j.erro||"resposta inválida")}
+  if(!j.ok)throw new Error(j.erro||"resposta inválida")
   return j}
  catch(e){ULT={onde,msg:String(e.message||e),t:new Date().toLocaleTimeString("pt-BR")};indSave();throw e}}
 function indSave(){const el=document.getElementById("saveInd");if(!el)return;const n=PEND.length+PENDA.size;el.title=ULT?"Último erro ("+ULT.t+") em "+ULT.onde+": "+ULT.msg+" — clique para detalhes e reenviar":"Clique para detalhes";
@@ -690,8 +689,8 @@ $("mvb").onclick=()=>{if(GRADE_STATE.locked)return st("A grade está travada. De
  salvarMan();agendarCalc();$("mvp").value="";st(`Projeto ${p.id} atualizado na grade.`,"ok")};
 $("mvc").onclick=()=>{if(GRADE_STATE.locked)return st("A grade está travada. Destrave antes de limpar ajustes.","er");MANV={};salvarMan();agendarCalc();st("Ajustes manuais da grade removidos.","ok")};
 // ===== GRAVAÇÃO NA PLANILHA DE AVALIADORES (Apps Script: Code_avaliadores.gs) =====
-// URL (/exec) do script dos avaliadores de cada núcleo (mesmo Code.gs, sem token no arquivo). Vazio = desligado.
-const SYNCAV={SEMCITEC:{url:"https://script.google.com/macros/s/AKfycbxvmGuTzHI3AqASCuL82SFAlsi2p9BP4cdLwfxgMB_8T9FgWBzYxhqhwpfo0kfapa3Jzw/exec"},FECEG:{url:"https://script.google.com/macros/s/AKfycbyL5AaUrNkRaROyD7CpsXxpPGMu7X1Ndvbs_0RkpA4w44-FtSz6fuY86Ywj0OjU05nhIA/exec"}}; // script (Code.gs) ligado à planilha de avaliadores de cada núcleo
+// Avaliadores, pré-avaliação e configurações usam o mesmo script de cada núcleo (SYNC acima).
+const SYNCAV=SYNC; // um único script (Code.gs) por núcleo
 const syncAv=()=>!!(SYNCAV[modo]&&SYNCAV[modo].url),PENDA=new Map();let envA=null,avT=null;
 const sav=(m,c="")=>{$("sav").textContent=$("pr_s").textContent=m;$("sav").style.color=c==="er"?"var(--er)":c==="ok"?"var(--ok)":"";$("brA").className=PENDA.size?"":"hid";ES.a=c==="er";indSave()};
 function agendarAv(a){if(!syncAv()||!$("syA").checked||!a.k0)return;PENDA.set(modo+"\t"+a.k0,{modo,n0:a.n0,e0:a.e0,disp:a.disp,aprov:!!a.aprov,pre:!!a.pre,ref:a,...Object.fromEntries(["nome","inst","email","areas"].filter(k=>a[k]!==a.o0[k]).map(k=>[k,a[k]]))});
@@ -723,9 +722,9 @@ const salvarPre=()=>{try{localStorage.setItem(preK(),JSON.stringify(PRF))}catch(
 async function enviarPre(){try{sav("Gravando a pré-avaliação na planilha...");const j=await postAv("SEMCITEC",{acao:"salvarPre",itens:Object.entries(PRF).map(([id,v])=>({id,...v}))});sav(`Pré-avaliação gravada na planilha (${j.n} projeto(s) travados).`,"ok")}catch(e){sav("⚠ Pré-avaliação NÃO gravada na planilha: "+e.message,"er")}}
 async function lerPreSheet(){const m=modo;try{const j=await postAv(m,{acao:"lerPre"});if(m!==modo)return;
  if(j.itens.length){PRF={};j.itens.forEach(i=>PRF[i.id]={nome:i.nome,inst:i.inst,email:i.email,t:i.t,pi:i.pi,em:i.em});try{localStorage.setItem(preK(),JSON.stringify(PRF))}catch(e){}agendarCalc()}else if(Object.keys(PRF).length)enviarPre();
- sav("Pré-avaliação sincronizada com a planilha.","ok")}catch(e){sav("⚠ Não consegui ler a pré-avaliação da planilha: "+e.message,"er")}}
+ sav("Pré-avaliação sincronizada com a planilha.","ok")}catch(e){sav("⚠ Não consegui ler a pré-avaliação da planilha: "+e.message,"er");ES.a=false;indSave()}}
 function agendarEst(){if(!syncAv())return;clearTimeout(estT);estT=setTimeout(async()=>{try{await postAv(modo,{acao:"salvarEstado",modo,estado:{cfg:CFG[modo],man:MANV,grade:GRADE_STATE,mail:CFG[modo].emailTemplates,links:{lp:LINKS_SALVOS[modo].lp,lr:LINKS_SALVOS[modo].lr}}});ES.a=false;indSave()}catch(e){sav("⚠ Configurações e ajustes NÃO gravados na planilha: "+e.message,"er")}},1500)}
-async function lerEstSheet(){const m=modo;try{const j=await postAv(m,{acao:"lerEstado",modo:m});if(m!==modo)return;if(!j.estado){agendarEst();return}Object.assign(CFG[m],j.estado.cfg||{});if(j.estado.mail)CFG[m].emailTemplates=j.estado.mail;if(j.estado.links){if(j.estado.links.lp)LINKS_SALVOS[m].lp=j.estado.links.lp;if(j.estado.links.lr!==undefined)LINKS_SALVOS[m].lr=j.estado.links.lr}MANV=j.estado.man||{};GRADE_STATE=Object.assign({locked:false,lockedAt:"",version:0,priority:{},rooms:{},snapshotMan:{}},j.estado.grade||{});try{localStorage.setItem("sdcv_cfg",JSON.stringify(CFG));localStorage.setItem("sdcv_lp_"+m,LINKS_SALVOS[m].lp||"");localStorage.setItem(manK(),JSON.stringify(MANV));localStorage.setItem(gradeK(),JSON.stringify(GRADE_STATE))}catch(e){}drawCfg();drawH();drawG();agendarCalc()}catch(e){sav("⚠ Não consegui ler as configurações da planilha: "+e.message,"er")}}
+async function lerEstSheet(){const m=modo;try{const j=await postAv(m,{acao:"lerEstado",modo:m});if(m!==modo)return;if(!j.estado){agendarEst();return}Object.assign(CFG[m],j.estado.cfg||{});if(j.estado.mail)CFG[m].emailTemplates=j.estado.mail;if(j.estado.links){if(j.estado.links.lp)LINKS_SALVOS[m].lp=j.estado.links.lp;if(j.estado.links.lr!==undefined)LINKS_SALVOS[m].lr=j.estado.links.lr}MANV=j.estado.man||{};GRADE_STATE=Object.assign({locked:false,lockedAt:"",version:0,priority:{},rooms:{},snapshotMan:{}},j.estado.grade||{});try{localStorage.setItem("sdcv_cfg",JSON.stringify(CFG));localStorage.setItem("sdcv_lp_"+m,LINKS_SALVOS[m].lp||"");localStorage.setItem(manK(),JSON.stringify(MANV));localStorage.setItem(gradeK(),JSON.stringify(GRADE_STATE))}catch(e){}drawCfg();drawH();drawG();agendarCalc()}catch(e){sav("⚠ Não consegui ler as configurações da planilha: "+e.message,"er");ES.a=false;indSave()}}
 function drawQ(){const el=$("pr_g"),pg=GRD&&GRD.pg;
  if(!pg){$("pr_bar").hidden=true;el.innerHTML='<p class="mut" style="padding:8px">Sem dados ainda: carregue os projetos em Avaliação e os avaliadores (SEMCITEC).</p>';return}
  $("pr_bar").hidden=false;const pa=CFG.SEMCITEC.porAval,all=[...pg.cols.flatMap(c=>c.pr),...pg.sem],nf=all.filter(p=>!PRF[p.id]&&pg.cols.some(c=>c.pr.includes(p))).length,dv=$("pr_a").value;
