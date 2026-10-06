@@ -689,7 +689,7 @@ $("mvb").onclick=()=>{if(GRADE_STATE.locked)return st("A grade está travada. De
  salvarMan();agendarCalc();$("mvp").value="";st(`Projeto ${p.id} atualizado na grade.`,"ok")};
 $("mvc").onclick=()=>{if(GRADE_STATE.locked)return st("A grade está travada. Destrave antes de limpar ajustes.","er");MANV={};salvarMan();agendarCalc();st("Ajustes manuais da grade removidos.","ok")};
 // ===== GRAVAÇÃO NA PLANILHA DE AVALIADORES (Apps Script: Code_avaliadores.gs) =====
-// Avaliadores, pré-avaliação e configurações usam o script da planilha de avaliadores de cada núcleo. 
+// Avaliadores, pré-avaliação e configurações usam o script da planilha de avaliadores de cada núcleo.
 const SYNCAV={SEMCITEC:{url:"https://script.google.com/macros/s/AKfycbxvmGuTzHI3AqASCuL82SFAlsi2p9BP4cdLwfxgMB_8T9FgWBzYxhqhwpfo0kfapa3Jzw/exec"},FECEG:{url:"https://script.google.com/macros/s/AKfycbyL5AaUrNkRaROyD7CpsXxpPGMu7X1Ndvbs_0RkpA4w44-FtSz6fuY86Ywj0OjU05nhIA/exec"}}; // script ligado à planilha de avaliadores de cada núcleo
 const syncAv=()=>!!(SYNCAV[modo]&&SYNCAV[modo].url),PENDA=new Map();let envA=null,avT=null;
 const sav=(m,c="")=>{$("sav").textContent=$("pr_s").textContent=m;$("sav").style.color=c==="er"?"var(--er)":c==="ok"?"var(--ok)":"";$("brA").className=PENDA.size?"":"hid";ES.a=c==="er";indSave()};
@@ -847,6 +847,6 @@ function drawV(){
 $("vmb").onclick=()=>{if(GRADE_STATE.locked)return st("A grade está travada. Destrave para mover projetos.","er");const q=$("vmp").value.trim(),f=fold(q);let p=projetoPorId(q);if(!p){const m=[...P,...O].filter(x=>f&&fold(x.titulo).includes(f));if(m.length===1)p=m[0]}if(!p)return st("Projeto não encontrado ou ambíguo.","er");const l=$("vmd").value;if(!l)return;MANV[p.id]={...(MANV[p.id]||{}),l,s:""};salvarMan();agendarCalc();$("vmp").value="";st(`Projeto ${p.id} movido para ${l}.`,"ok")};$("vmc").onclick=()=>$("vmp").value="";
 $("qv").oninput=drawV;
 $("saveInd").style.cursor="pointer";$("saveInd").onclick=detalheSave;
-$("bPing").onclick=async()=>{const o=[];for(const av of[false,true]){const nm=av?"Avaliadores":"Projetos";try{const j=await chamar(modo,{acao:"ping"},av);if(!j.projetos||!j.avaliadores)throw new Error("o script respondeu, mas é uma versão antiga: cole o Code.gs novo e implante NOVA VERSÃO");o.push(nm+": OK — "+(av?j.avaliadores.planilha+" / aba "+j.avaliadores.aba:j.projetos.planilha+" / aba "+j.projetos.aba+(j.projetos.temColunaId?"":" (SEM coluna 'id da submissão')")))}catch(e){o.push(nm+": FALHOU — "+e.message)}}alert(o.join("\n"))};
+$("bPing").onclick=async()=>{const o=[];for(const av of[false,true]){const nm=av?"Avaliadores":"Projetos";try{const j=await chamar(modo,{acao:"ping"},av);const d=av?j.avaliadores:j.projetos;if(!d)throw new Error(av?"o endereço de avaliadores não é um script de avaliadores (ou é versão antiga)":"o endereço de projetos não é um script de projetos (ou é versão antiga)");o.push(nm+": OK — "+d.planilha+" / aba "+d.aba+(!av&&d.temColunaId===false?" (SEM coluna 'id da submissão')":""))}catch(e){o.push(nm+": FALHOU — "+e.message)}}alert(o.join("\n"))};
 setModo("SEMCITEC");
 </script></body></html>
