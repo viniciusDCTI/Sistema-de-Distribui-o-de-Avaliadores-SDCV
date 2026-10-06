@@ -86,7 +86,7 @@ details.hint{margin:4px 0 8px}details.hint summary{cursor:pointer;color:var(--ac
 <div class="tw" id="gf"></div></section>
 <section class="card hid" id="sH"><h2>Horários <span class="mut" id="nh"></span></h2>
 <details class="hint"><summary>ℹ Como funciona</summary><p class="mut">Lista os horários encontrados na disponibilidade dos avaliadores. Desmarque "Ativo" para tirar um horário da distribuição e ajuste a capacidade de projetos de cada um. Para mudar o horário de um avaliador específico, edite a coluna de horários na aba Avaliadores. Tudo fica salvo neste navegador.</p></details>
-<div class="bar"><input type="date" id="hd" aria-label="Data"><input type="time" id="h1" aria-label="Início"><input type="time" id="h2" aria-label="Fim"><label style="display:flex;gap:6px;align-items:center;margin:0;font-weight:400"><input type="checkbox" id="hall" style="width:auto"> dar a todos os avaliadores aprovados</label><button id="hadd">+ Adicionar horário</button></div>
+<div class="bar"><input type="date" id="hd" aria-label="Data"><input type="time" id="h1" aria-label="Início"><input type="time" id="h2" aria-label="Fim"><label style="display:flex;gap:6px;align-items:center;margin:0;font-weight:400"><input type="checkbox" id="hall" style="width:auto"> dar a todos os avaliadores</label><button id="hadd">+ Adicionar horário</button></div>
 <div class="tw" id="gh"></div></section>
 <section class="card hid" id="sG"><h2>Grade de horários <span class="mut">avaliadores e projetos por horário</span></h2>
 <details class="hint"><summary>ℹ Como funciona</summary><p class="mut">Cada coluna é um horário ativo, com as salas, os avaliadores disponíveis e os projetos distribuídos. Para mover um projeto, digite o nome (ou ID) em "Projeto", escolha o destino e clique em Aplicar; o botão ↪ ao lado de cada projeto preenche o campo. Na FECEG, cada coluna é um turno presencial (2 avaliadores por projeto) e a coluna Online é automática: só os turnos presenciais podem ser ajustados. Os ajustes ficam salvos neste navegador e entram no Excel. "Automático" devolve o projeto à distribuição padrão.</p></details>
@@ -118,9 +118,10 @@ const LINKS_SALVOS={SEMCITEC:{lp:"https://docs.google.com/spreadsheets/d/1ISTv8U
 // ===== SINCRONIZAÇÃO DAS EXCLUSÕES COM A PLANILHA OFICIAL =====
 // Cole aqui a URL (/exec) do Apps Script (arquivo Code.gs) e o mesmo TOKEN definido nele. Vazio = sincronização desligada.
 const SYNC={SEMCITEC:{url:"https://script.google.com/macros/s/AKfycbyPTM0pjvoZyYHS0Rrp8aOB3-2ZLqur85wfBPslUvFjQXW4Mjw0g-fLdZCuSptxxwASdQ/exec",token:"Alice01@"},FECEG:{url:"https://script.google.com/macros/s/AKfycbwQrdTcmuw3Avv1IRVdNgc_LzIa4zQ5JNMglyQmK43Zdjn7Q7H7-4YqvlcuwKpSQRSa/exec",token:"Alice01@"}};
-const CFG={SEMCITEC:{porAval:10,avalSala:3,avalSalaSeg:6,relatosSeg:5,salas:["Sala 1","Sala 2","Sala 3","Sala 4"],cap:[10,7,7,7,10,10,10],off:[],capSlot:{},extra:[],cat:[]},FECEG:{dataOnline:"13/10",porTurno:50,off:[],capSlot:{},extra:[]}};
+const CFG={SEMCITEC:{porAval:10,avalSala:3,avalSalaSeg:6,relatosSeg:5,salas:["Sala 1","Sala 2","Sala 3","Sala 4"],cap:[10,7,7,7,10,10,10],off:[],capSlot:{},extra:[],cat:[]},FECEG:{dataOnline:"13/10",porTurno:50,off:[],capSlot:{},extra:[],cat:[],onlineOn:true}};
 try{const sv=JSON.parse(localStorage.getItem("sdcv_cfg"));if(sv)for(const m in sv)Object.assign(CFG[m]||{},sv[m]);for(const m in LINKS_SALVOS){const v=localStorage.getItem("sdcv_lp_"+m);if(v)LINKS_SALVOS[m].lp=v}}catch(e){}
 const salvarCfg=()=>{try{localStorage.setItem("sdcv_cfg",JSON.stringify(CFG))}catch(e){}agendarEst()};
+(()=>{const C=CFG.FECEG,f=k=>k.replace(/^(\d{2}\/\d{2}\/)(\d{2})_/,(m,a,b)=>a+"20"+b+"_");C.off=(C.off||[]).map(f);const c={};Object.entries(C.capSlot||{}).forEach(([k,v])=>c[f(k)]=v);C.capSlot=c;if(!Array.isArray(C.cat))C.cat=[];if(!Array.isArray(C.extra))C.extra=[];if(C.onlineOn===undefined)C.onlineOn=true})();
 const LIMITES={SEMCITEC:120,FECEG:216},ABA_FILA="Fila de espera";
 const DIAS=["Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado","Domingo"];
 const EXTRAS=["verificação","telefone (autor 1)","telefone (autor 2)","telefone (autor 3)","e-mail orientadores(as)"];
@@ -181,11 +182,14 @@ function prepararProjetos(rows){const fk=(rows.length?Object.keys(rows[0]):[]).m
  return{id:String(r["id da submissão"]??"").trim(),titulo:limparHtml(r["título"]),cat,autores:aut.join("; "),inst,insts:ins,eixo:r["eixo"]||"",orient:orients.join("; "),orients,situacao:kS?String(r[kS]??"").trim():"",
  tipo:c.includes("relato")?"Relato":(c.includes("pesquisa")||c.includes("academica"))?"Pesquisa":"Outros",
  extra:modo==="FECEG"?Object.fromEntries(EXTRAS.filter(k=>k in r).map(k=>[k.charAt(0).toUpperCase()+k.slice(1),r[k]])):{}}}).filter(p=>p.id).map(p=>(p.o={id:p.id,titulo:p.titulo,autor1:p.autores.split("; ")[0]||"",situacao:p.situacao},p))}
+let HCOLS=[];
+function dispF(r,ks,kd){const cs=ks.filter(k=>{const f=fold(k);return /dias|disponib|horario|turno|periodo|presencial|online|agenda/.test(f)&&!/mail|nome|institui|isntitui|empresa|areas|interesse|aprovado|telefone|carimbo/.test(f)}),ord=kd&&cs.includes(kd)?[kd,...cs.filter(k=>k!==kd)]:cs;HCOLS=ord;
+ return ord.map(k=>{const v=String(r[k]??"").trim();if(!v)return"";const fk=fold(k);if(/online/.test(fk)&&!/presencial|\bou\b/.test(fk)&&!/online/i.test(v)){return/^(nao|n|0|false|-)$/.test(fold(v))?"":(/\d{1,2}\/\d{1,2}/.test(v)?"Online: "+v:"Online")}return v}).filter(Boolean).join(" | ")}
 function prepararAval(rows){if(!rows.length)return[];const ks=Object.keys(rows[0]),f=fn=>ks.find(fn),kn=ks.find(k=>k.includes("nome completo"))||f(k=>k.includes("nome")),ki=f(k=>k.includes("institui")||k.includes("isntitui")),kc=f(k=>k.includes("empresa")),
  kd=f(k=>k.includes("dias")||k.includes("disponib")||fold(k).includes("horario")),ke=f(k=>k.includes("mail")),kA=f(k=>fold(k).trim()==="aprovado"),kI=f(k=>k.includes("interesse")&&k.includes("pre")),kR=f(k=>fold(k).includes("areas")),seen=new Set();
  // Aprovado: preenchido (ID do aprovado) = aprovado; interessepreselecaosemcitec = "sim" = quer fazer a pré-avaliação. Sem essas colunas (planilhas antigas/FECEG) todos valem.
  const tem=v=>{const x=fold(v).trim();return x!==""&&!/^(nao|0|false|nan|null|-)$/.test(x)},sim=v=>/^(sim|s|1|true|x)$/.test(fold(v).trim());
- return rows.map(r=>{const ap=kA?tem(r[kA]):true;return{nome:titleCase(r[kn]),inst:mapInst((ki&&String(r[ki]||"").trim())||(kc&&r[kc])||""),disp:String(r[kd]||""),email:r[ke]||"",areas:String(kR?r[kR]||"":""),aprov:ap,pre:ap&&(kI?sim(r[kI]):true)}}).filter(a=>a.nome&&!seen.has(a.nome+a.inst)&&seen.add(a.nome+a.inst))}
+ return rows.map(r=>{const ap=kA?tem(r[kA]):true;return{nome:titleCase(r[kn]),inst:mapInst((ki&&String(r[ki]||"").trim())||(kc&&r[kc])||""),disp:modo==="FECEG"?dispF(r,ks,kd):String(r[kd]||""),email:r[ke]||"",areas:String(kR?r[kR]||"":""),aprov:ap,pre:ap&&(kI?sim(r[kI]):true)}}).filter(a=>a.nome&&!seen.has(a.nome+a.inst)&&seen.add(a.nome+a.inst))}
 function mapaRec(r){if(!r.length)return{};const ks=Object.keys(r[0]),ki=ks.find(k=>k.includes("id da submiss"))||ks.find(k=>/(^|\W)id(\W|$)/.test(k))||ks[0],kr=ks.find(k=>k.includes("recomend"))||ks.find(k=>k.includes("status"))||ks[1],m={};
  r.forEach(x=>{const i=String(x[ki]??"").trim();if(i)m[i]=String(x[kr]??"").trim()||"NÃO AVALIADO"});return m}
 
@@ -253,28 +257,38 @@ function semcitec(P,A,PRE=[]){const{porAval,avalSala,avalSalaSeg,relatosSeg,sala
  if(nd.length)avisos.push(`${nd.length} projeto(s) aprovado(s) não foram distribuídos em nenhuma data/horário.`);
  return{g:GR,nd,pg:PG,w:w.o,avisos,stats:{"Em avaliação (pré)":PRE.length,"Com avaliador (pré)":PRE.length-sp,"Pré-avaliadores":AV.length,"Aprovados":P.length,"Distribuídos":aloc.size,"Não distribuídos":nd.length,"Avaliadores aprovados":AP.length,"Datas/horários":slots.length}}}
 
-function turnos(d){const{dataOnline}=CFG.FECEG,s=String(d||""),out=[];if(/online/i.test(s)||s.includes(dataOnline))out.push("online");
- s.split(/[,;\n]/).forEach(t=>{const m=t.match(/(\d{2}\/\d{2}\/\d{2,4}).*?(\d{1,2})\s*h/i);if(m&&!/online/i.test(t)&&!t.includes(dataOnline)){const k=`${m[1]}_${+m[2]<12?"manhã":"tarde"}`;if(!out.includes(k))out.push(k)}});return out}
+function parseTurnos(t){const s=String(t??""),out=[],seen=new Set(),on=String(CFG.FECEG.dataOnline||""),om=on.match(/(\d{1,2})\/(\d{1,2})/),od=om?pad2(+om[1])+"/"+pad2(+om[2]):"",yr=new Date().getFullYear(),
+ add=x=>{if(!seen.has(x.key)){seen.add(x.key);out.push(x)}},ON=()=>add({key:"online",online:true,label:"Online",tx:"Online",ord:"0"}),DR=/(\d{1,2})\/(\d{1,2})(?:\/(\d{4}|\d{2}))?(?!\d)/g;
+ s.split(/\s*(?:[|;\n]|,(?=\s*(?:\d{1,2}\/\d{1,2}|manh|tarde|noite|online)))\s*/i).forEach(part=>{part=part.trim();if(!part)return;const isOn=/online/.test(fold(part)),ds=[...part.matchAll(DR)];
+  if(!ds.length){if(isOn)ON();return}
+  const rest=part.replace(DR," "),hs=[...rest.matchAll(/(\d{1,2})\s*(?:[:h]\s*(\d{2})|hs?)(?![a-z])/gi)],f=fold(rest);
+  ds.forEach(d=>{const dd=pad2(+d[1]),mm=pad2(+d[2]);if(isOn||dd+"/"+mm===od)return ON();
+   const y=d[3]?(+d[3]<100?2000+ +d[3]:+d[3]):yr,h0=hs.length?+hs[0][1]:null,per=h0!==null?(h0<12?"manhã":h0<18?"tarde":"noite"):/manh/.test(f)?"manhã":/tarde/.test(f)?"tarde":/noite/.test(f)?"noite":"dia",
+    hora=hs.length>1?fmtH(hs[0][1],hs[0][2])+"-"+fmtH(hs[1][1],hs[1][2]):hs.length?fmtH(hs[0][1],hs[0][2]):"";
+   add({key:`${dd}/${mm}/${y}_${per}`,label:`${dd}/${mm}/${y} ${per}`,tx:ds.length===1?part:`${dd}/${mm}/${y} ${rest.replace(/\s+/g," ").trim()}`,hora,per,ord:`${y}${mm}${dd}${{dia:0,"manhã":1,tarde:2,noite:3}[per]}`})})});
+ return out}
+function turnos(d){return parseTurnos(d).map(x=>x.key)}
 function feceg(P,A,porAval){const{porTurno}=CFG.FECEG,w=wb(),avisos=[],GR=[];A.forEach(a=>a.t=turnos(a.disp));
+ {const sh=A.filter(a=>!a.t.length).length;if(sh)avisos.push(HCOLS.length?`${sh} avaliador(es) sem horário reconhecido (coluna${HCOLS.length>1?"s":""} lida${HCOLS.length>1?"s":""}: ${HCOLS.join(", ")}). Edite na aba Avaliadores.`:`${sh} avaliador(es) sem horário: não encontrei coluna de disponibilidade na planilha (cabeçalho com "disponibilidade", "horário", "dias" ou "turno"). Edite na aba Avaliadores.`)}
  const dist=(pool,avs,n,max)=>{const c=new Map(),out=[];for(const p of pool){if(out.length>=max)break;const sel=[];
   for(const a of avs.filter(a=>!conf(p,a.inst)&&(c.get(a.nome)||0)<porAval).sort((x,y)=>(c.get(x.nome)||0)-(c.get(y.nome)||0))){if(sel.length>=n)break;sel.push(a);c.set(a.nome,(c.get(a.nome)||0)+1)}
   if(sel.length)out.push({...p,avals:sel})}return out};
- const on=A.filter(a=>a.t.includes("online")),chaves=[...new Set(A.flatMap(a=>a.t).filter(t=>t!=="online"&&!CFG.FECEG.off.includes(t)))].sort(),online=on.length?dist(P,on,1,P.length):[];
- if(!on.length)avisos.push("Nenhum avaliador online encontrado.");else if(online.length<P.length)avisos.push(`Online: ${P.length-online.length} projeto(s) sem avaliador (${on.length} avaliadores × ${porAval} = ${on.length*porAval} vagas).`);
+ const ONL=CFG.FECEG.onlineOn!==false,on=ONL?A.filter(a=>a.t.includes("online")):[],chaves=[...new Set(A.flatMap(a=>a.t).filter(t=>t!=="online"&&!CFG.FECEG.off.includes(t)))].sort(),online=on.length?dist(P,on,1,P.length):[];
+ if(ONL&&!on.length)avisos.push("Nenhum avaliador online encontrado.");else if(ONL&&online.length<P.length)avisos.push(`Online: ${P.length-online.length} projeto(s) sem avaliador (${on.length} avaliadores × ${porAval} = ${on.length*porAval} vagas).`);
  if(!chaves.length)avisos.push("Nenhum turno presencial encontrado na disponibilidade (esperado: data dd/mm/aa e horário, ex.: 21/10/25 08hs às 12hs).");
  const nm=a=>a?a.nome:"NÃO ALOCADO",ni=a=>a?a.inst:"NÃO ALOCADO",lista=l=>l.map(a=>`${a.nome} (${a.inst})`).join("; ")||"NENHUM AVALIADOR",
  colP=p=>({"ID Projeto":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst});
- w.add("Online",[{"Sala":"Avaliação Online","Tipo":"AVALIADORES","Detalhe":lista(on)},...online.map(p=>({"Sala":"Avaliação Online","Tipo":"PROJETO",...colP(p),"Avaliador":nm(p.avals[0]),"Instituição Avaliador":ni(p.avals[0]),...p.extra}))]);
+ if(ONL)w.add("Online",[{"Sala":"Avaliação Online","Tipo":"AVALIADORES","Detalhe":lista(on)},...online.map(p=>({"Sala":"Avaliação Online","Tipo":"PROJETO",...colP(p),"Avaliador":nm(p.avals[0]),"Instituição Avaliador":ni(p.avals[0]),...p.extra}))]);
  const aloc=new Set(),pres={};
  chaves.forEach(k=>{const avs=A.filter(a=>a.t.includes(k)),ds=dist([...P.filter(p=>!aloc.has(p.id)&&MAN()[p.id]&&MAN()[p.id].l===k),...P.filter(p=>!aloc.has(p.id)&&!MAN()[p.id])],avs,2,CFG.FECEG.capSlot[k]??porTurno);GR.push({k,t:k.replace("_"," "),av:avs,pr:ds});ds.forEach(p=>{aloc.add(p.id);pres[p.id]=p.avals});
   w.add(k.replace("_"," "),[{"Sala":"Salão de Artes","Tipo":"AVALIADORES","Detalhe":lista(avs)},...ds.map(p=>({"Sala":"Salão de Artes","Tipo":"PROJETO",...colP(p),"Avaliador 1":nm(p.avals[0]),"Instituição Avaliador 1":ni(p.avals[0]),"Avaliador 2":nm(p.avals[1]),"Instituição Avaliador 2":ni(p.avals[1]),...p.extra}))])});
  const nd=P.filter(p=>!aloc.has(p.id));
  w.add("Projetos Não Distribuídos",nd.map(p=>({"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,"Motivo":"Não alocado em nenhum turno presencial",...p.extra})));
  const om=new Map(online.map(p=>[p.id,p.avals[0]]));
- w.add("Resumo Completo",P.map(p=>{const o=om.get(p.id),r=pres[p.id]||[];return{"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,"Avaliador Online":nm(o),"Instituição Avaliador Online":ni(o),
+ w.add("Resumo Completo",P.map(p=>{const o=om.get(p.id),r=pres[p.id]||[];return{"ID":p.id,"Título":p.titulo,"Categoria":p.cat,"Autores":p.autores,"Instituição":p.inst,...(ONL?{"Avaliador Online":nm(o),"Instituição Avaliador Online":ni(o)}:{}),
   "Avaliador Presencial 1":nm(r[0]),"Instituição Avaliador Presencial 1":ni(r[0]),"Avaliador Presencial 2":nm(r[1]),"Instituição Avaliador Presencial 2":ni(r[1]),"Total Avaliadores":(o?1:0)+r.length,...p.extra}}));
  if(nd.length)avisos.push(`${nd.length} projeto(s) sem turno presencial.`);
- return{g:{f:1,cols:GR,on,online,nd},nd,w:w.o,avisos,stats:{"Projetos":P.length,"Avaliadores":A.length,"Com avaliação online":online.length,"Com turno presencial":aloc.size}}}
+ return{g:{f:1,cols:GR,on,online,nd,onl:ONL},nd,w:w.o,avisos,stats:{"Projetos":P.length,"Avaliadores":A.length,...(ONL?{"Com avaliação online":online.length}:{}),"Com turno presencial":aloc.size}}}
 
 let P=[],O=[],A=[],cur=null;const sq={p:0,a:0};
 let FILA=[],SELP=[],PROJ_OK=false,filaT=null;const filaSig={};
@@ -319,12 +333,12 @@ const DS={
   val:(r,k)=>isO(k)?r.orients[+k.slice(1)]||"":r[k],
   set(r,k,v){if(isO(k)){const i=+k.slice(1);while(r.orients.length<=i)r.orients.push("");const ps=splitOrient(v);if(ps.length){r.orients.splice(i,1,...ps);if(ps.length>1)r.orients=uniq(r.orients)}else r.orients[i]=v;r.orient=r.orients.filter(Boolean).join("; ");return}
    if(k==="inst"){v=mapInst(v);r.insts.delete(r.inst);r.insts.add(v)}if(k==="cat")r.tipo=tipoDe(v);r[k]=v}},
- a:{rows:()=>A,get cols(){return modo==="SEMCITEC"?[["nome","Nome"],["inst","Instituição"],["aprov","Aprovado"],["pre","Pré-avaliação"],["disp","Horários (data hora-hora | ...)"],["areas","Áreas de conhecimento"],["email","E-mail"]]:[["nome","Nome"],["inst","Instituição"],["disp","Disponibilidade"],["email","E-mail"]]},
+ a:{rows:()=>A,get cols(){return modo==="SEMCITEC"?[["nome","Nome"],["inst","Instituição"],["aprov","Aprovado"],["pre","Pré-avaliação"],["disp","Horários (data hora-hora | ...)"],["areas","Áreas de conhecimento"],["email","E-mail"]]:[["nome","Nome"],["inst","Instituição"],["disp","Horários (online / turnos)"],...(A.some(a=>a.areas)?[["areas","Áreas de conhecimento"]]:[]),["email","E-mail"]]},
   val:(r,k)=>k==="aprov"||k==="pre"?(r[k]?"Sim":"Não"):r[k]??"",
   set(r,k,v){if(k==="nome")v=titleCase(v);if(k==="inst")v=mapInst(v);if(k==="aprov"||k==="pre")v=/^(sim|s|1|true|x)$/.test(fold(v).trim());r[k]=v;salvarOvr(r)}}};
 DS.x={rows:()=>O,get cols(){return colsProj(O)},val:DS.p.val,set:DS.p.set};
-function draw(t){const d=DS[t],rows=d.rows(),cols=d.cols;if(t==="a"&&modo==="SEMCITEC")OPC=opcoesH();
- $("g"+t).innerHTML=rows.length?`<table><tr><th>#</th>${cols.map(([k,n])=>`<th>${n}<input class="cf" data-k="${k}" value="${esc(F[t][k]||"")}" placeholder="filtrar" aria-label="Filtrar ${n}"></th>`).join("")}<th></th></tr>`+rows.map((r,i)=>`<tr data-i="${i}"><td>${i+1}</td>${cols.map(([k])=>k==="disp"&&t==="a"&&modo==="SEMCITEC"?`<td>${pickH(r)}</td>`:k==="situacao"&&isProj(t)?`<td>${selSit(r.situacao)}</td>`:`<td contenteditable="true" data-k="${k}">${esc(V(d,r,k))}</td>`).join("")}<td><button class="x" data-del="1" title="Excluir linha">✕</button></td></tr>`).join("")+"</table>":'<p style="padding:10px;color:var(--mut)">Nenhum dado carregado.</p>';
+function draw(t){const d=DS[t],rows=d.rows(),cols=d.cols;if(t==="a")OPC=opcoesH();
+ $("g"+t).innerHTML=rows.length?`<table><tr><th>#</th>${cols.map(([k,n])=>`<th>${n}<input class="cf" data-k="${k}" value="${esc(F[t][k]||"")}" placeholder="filtrar" aria-label="Filtrar ${n}"></th>`).join("")}<th></th></tr>`+rows.map((r,i)=>`<tr data-i="${i}"><td>${i+1}</td>${cols.map(([k])=>k==="disp"&&t==="a"?`<td>${pickH(r)}</td>`:k==="situacao"&&isProj(t)?`<td>${selSit(r.situacao)}</td>`:`<td contenteditable="true" data-k="${k}">${esc(V(d,r,k))}</td>`).join("")}<td><button class="x" data-del="1" title="Excluir linha">✕</button></td></tr>`).join("")+"</table>":'<p style="padding:10px;color:var(--mut)">Nenhum dado carregado.</p>';
  aplicar(t);if(t==="x")$("tX").textContent=`Outras situações (${O.length})`;refDup()}
 function aplicar(t){const d=DS[t],rows=d.rows(),q=fold($("q"+t).value.trim()),fs=Object.entries(F[t]).filter(e=>e[1].trim()).map(([k,f])=>[k,fold(f.trim())]);let n=0;
  $("g"+t).querySelectorAll("tr[data-i]").forEach(tr=>{const r=rows[+tr.dataset.i],ok=(!q||fold(d.cols.map(([k])=>V(d,r,k)).join(" ")).includes(q))&&fs.every(([k,f])=>fold(V(d,r,k)).includes(f));tr.hidden=!ok;if(ok)n++});
@@ -461,7 +475,7 @@ function extraA(tx){A.forEach(a=>{if(a.aprov)a.disp=[a.disp,tx].filter(Boolean).
 const aplicarExtra=()=>CFG[modo].extra.forEach(extraA);
 function listaH(){const o=new Map();
  if(modo==="SEMCITEC")A.filter(a=>a.aprov).forEach(a=>parseSlots(a.disp).forEach(x=>{const v=o.get(x.label)||{key:x.label,txt:x.data?`${x.data} · ${x.hora||"sem horário"} · ${x.wd}`:x.wd,ord:x.ord,n:0,x};v.n++;o.set(x.label,v)}));
- else A.forEach(a=>turnos(a.disp).filter(t=>t!=="online").forEach(k=>{const v=o.get(k)||{key:k,txt:k.replace("_"," "),ord:k,n:0};v.n++;o.set(k,v)}));
+ else A.forEach(a=>parseTurnos(a.disp).filter(x=>!x.online).forEach(x=>{const v=o.get(x.key)||{key:x.key,txt:x.label+(x.hora?" · "+x.hora:""),ord:x.ord,n:0};v.n++;o.set(x.key,v)}));
  return[...o.values()].sort((a,b)=>a.ord<b.ord?-1:a.ord>b.ord?1:0)}
 function drawH(){const L=listaH(),C=CFG[modo],S=modo==="SEMCITEC";
  $("nh").textContent=`(${L.filter(v=>!C.off.includes(v.key)).length} ativos de ${L.length})`;
@@ -471,17 +485,18 @@ $("gh").addEventListener("change",e=>{const t=e.target,C=CFG[modo];
  else if(t.dataset.ck!=null){if(t.value==="")delete C.capSlot[t.dataset.ck];else C.capSlot[t.dataset.ck]=Math.max(0,+t.value)}else return;
  salvarCfg();drawH();agendarCalc()});
 $("hadd").onclick=()=>{const d=$("hd").value,a=$("h1").value,b=$("h2").value;if(!d||!a||!b)return st("Informe data, início e fim do horário.","er");
- const[y,m,dd]=d.split("-"),tx=modo==="SEMCITEC"?`${dd}/${m}/${y} ${a}-${b}`:`${dd}/${m}/${y.slice(2)} ${a.slice(0,2)}hs às ${b.slice(0,2)}hs`;
- const todos=$("hall").checked||modo!=="SEMCITEC";if(todos){CFG[modo].extra.push(tx);extraA(tx)}else CFG[modo].cat.push(tx);salvarCfg();draw("a");st(todos?"Horário adicionado a todos os avaliadores aprovados.":"Horário adicionado às opções: marque-o em cada avaliador.","ok")};
+ const[y,m,dd]=d.split("-"),tx=modo==="SEMCITEC"?`${dd}/${m}/${y} ${a}-${b}`:`${dd}/${m}/${y.slice(2)} ${hF(a)} às ${hF(b)}`;
+ const todos=$("hall").checked;if(todos){CFG[modo].extra.push(tx);extraA(tx)}else CFG[modo].cat.push(tx);salvarCfg();draw("a");st(todos?"Horário adicionado a todos os avaliadores aprovados.":"Horário adicionado às opções: marque-o em cada avaliador.","ok")};
 const CF={SEMCITEC:[["porAval","Projetos por avaliador (pré-avaliação)"],["avalSala","Avaliadores por sala"],["avalSalaSeg","Avaliadores na sala de segunda-feira"],["relatosSeg","Relatos na segunda-feira"]],FECEG:[["porTurno","Projetos por turno presencial"],["dataOnline","Data da avaliação online (dd/mm)","text"]]};
 function drawCfg(){const C=CFG[modo],S=modo==="SEMCITEC";
  $("cfgBody").innerHTML=`<label>Link da planilha de projetos<input data-lp type="text" value="${esc(LINKS_SALVOS[modo].lp)}"></label><div class="g2">`+CF[modo].map(([k,n,t])=>`<label>${n}<input data-cf="${k}" type="${t||"number"}" min="0" value="${esc(C[k])}"></label>`).join("")+"</div>"+
- (S?`<label>Salas (separadas por vírgula; a última recebe os Relatos)<input data-cf="salas" type="text" value="${esc(C.salas.join(", "))}"></label><label>Projetos por sala em cada dia da semana (por horário, ajuste na aba Horários)</label><div class="g2">${DIAS.map((d,i)=>`<label class="mut" style="font-weight:400">${d}<input data-cd="${i}" type="number" min="0" value="${C.cap[i]}"></label>`).join("")}</div>`:"")}
+ (S?`<label>Salas (separadas por vírgula; a última recebe os Relatos)<input data-cf="salas" type="text" value="${esc(C.salas.join(", "))}"></label><label>Projetos por sala em cada dia da semana (por horário, ajuste na aba Horários)</label><div class="g2">${DIAS.map((d,i)=>`<label class="mut" style="font-weight:400">${d}<input data-cd="${i}" type="number" min="0" value="${C.cap[i]}"></label>`).join("")}</div>`:"")+(!S?`<div class="fld" style="margin:12px 0"><b>Avaliação online</b> <span class="mut">${C.onlineOn===false?"desativada: não aparece na grade nem nos arquivos.":"ativada: aparece como coluna Online na grade."}</span><div class="row" style="margin:8px 0 0"><button data-onl="1"${C.onlineOn===false?' class="p"':""}>${C.onlineOn===false?"Ativar":"Desativar"} avaliação online</button></div></div>`:"")}
 $("cfgBody").addEventListener("change",e=>{const t=e.target,C=CFG[modo];
  if(t.dataset.lp!=null){LINKS_SALVOS[modo].lp=t.value.trim();try{localStorage.setItem("sdcv_lp_"+modo,t.value.trim())}catch(x){}return void lerProj()}
  if(t.dataset.cf){const k=t.dataset.cf;C[k]=k==="salas"?t.value.split(",").map(x=>x.trim()).filter(Boolean):k==="dataOnline"?t.value.trim():Math.max(0,+t.value);if(k==="salas"&&!C.salas.length)C.salas=["Sala 1"]}
  else if(t.dataset.cd!=null)C.cap[+t.dataset.cd]=Math.max(0,+t.value);else return;
  salvarCfg();drawCfg();drawH();agendarCalc()});
+$("cfgBody").addEventListener("click",e=>{if(!e.target.closest("[data-onl]"))return;const C=CFG.FECEG;C.onlineOn=C.onlineOn===false;salvarCfg();drawCfg();agendarCalc();st(C.onlineOn?"Avaliação online ativada.":"Avaliação online desativada: removida da grade e dos arquivos.","ok")});
 ["I","H","G","Q","R","C"].forEach(k=>$("t"+k).onclick=()=>aba(k));$("lr").onchange=$("pa").onchange=agendarCalc;
 // ===== SELETOR DE HORÁRIOS, GRADE E AJUSTES (salvos no navegador) =====
 let OPC=[],OVR={},MANV={},GRD=null,GRP=new Map(),DEST=[];
@@ -490,12 +505,13 @@ const salvarMan=()=>{try{localStorage.setItem(manK(),JSON.stringify(MANV))}catch
 function carMan(){try{MANV=JSON.parse(localStorage.getItem(manK()))||{}}catch(e){MANV={}}}
 function aplicarOvr(){try{OVR=JSON.parse(localStorage.getItem(ovrK()))||{}}catch(e){OVR={}}A.forEach(a=>{a.k0=a.nome+"|"+a.inst;a.n0=a.nome;a.e0=a.email;a.o0={nome:a.nome,inst:a.inst,email:a.email,areas:a.areas};if(OVR[a.k0])Object.assign(a,OVR[a.k0])})}
 function salvarOvr(a){if(!a.k0)return;OVR[a.k0]={disp:a.disp,aprov:a.aprov,pre:a.pre,areas:a.areas,email:a.email,nome:a.nome,inst:a.inst};try{localStorage.setItem(ovrK(),JSON.stringify(OVR))}catch(e){}agendarAv(a)}
-function opcoesH(){const m=new Map(),add=tx=>parseSlots(tx).forEach(x=>{if(!m.has(x.label))m.set(x.label,{x,tx:x.data?x.data+(x.hora?" "+x.hora:""):x.wd})});A.forEach(a=>add(a.disp));CFG.SEMCITEC.cat.concat(CFG.SEMCITEC.extra).forEach(add);return[...m.values()].sort((a,b)=>a.x.ord-b.x.ord)}
-function pickH(a){const sel=new Set(parseSlots(a.disp).map(x=>x.label));
- return`<details class="hsel"><summary>${sel.size} horário(s)</summary><div class="hlist">${OPC.map(o=>`<label><input type="checkbox" data-hp="${esc(o.x.label)}"${sel.has(o.x.label)?" checked":""}>${esc(o.x.data?`${o.x.data} ${o.x.hora} · ${o.x.wd.slice(0,3)}`:o.x.wd)}</label>`).join("")||'<span class="mut">Nenhum horário cadastrado (aba Horários).</span>'}</div></details>`}
+function opcoesH(){const S=modo==="SEMCITEC",m=new Map(),add=tx=>slotsAv(tx).forEach(x=>{if(!m.has(x.label))m.set(x.label,{x,tx:S?(x.data?x.data+(x.hora?" "+x.hora:""):x.wd):x.tx})});if(!S)m.set("Online",{x:{label:"Online",online:true,ord:"0"},tx:"Online"});A.forEach(a=>add(a.disp));(CFG[modo].cat||[]).concat(CFG[modo].extra||[]).forEach(add);return[...m.values()].sort((a,b)=>a.x.ord<b.x.ord?-1:a.x.ord>b.x.ord?1:0)}
+const slotsAv=t=>modo==="SEMCITEC"?parseSlots(t):parseTurnos(t),resumoH=s=>s.size+" horário(s)"+(modo==="FECEG"&&s.has("Online")?" · online":""),rotH=x=>modo==="FECEG"?x.label+(x.hora?" · "+x.hora:""):(x.data?`${x.data} ${x.hora} · ${x.wd.slice(0,3)}`:x.wd),hF=t=>{const[h,mi]=String(t).split(":");return+mi?`${h}h${mi}`:`${h}hs`};
+function pickH(a){const sel=new Set(slotsAv(a.disp).map(x=>x.label));
+ return`<details class="hsel"><summary>${resumoH(sel)}</summary><div class="hlist">${OPC.map(o=>`<label><input type="checkbox" data-hp="${esc(o.x.label)}"${sel.has(o.x.label)?" checked":""}>${esc(rotH(o.x))}</label>`).join("")||'<span class="mut">Nenhum horário cadastrado (aba Horários).</span>'}</div></details>`}
 $("ga").addEventListener("change",e=>{const c=e.target.closest&&e.target.closest("input[data-hp]");if(!c)return;const tr=c.closest("tr"),a=A[+tr.dataset.i];if(!a)return;
- const set=new Set(parseSlots(a.disp).map(x=>x.label));c.checked?set.add(c.dataset.hp):set.delete(c.dataset.hp);
- a.disp=OPC.filter(o=>set.has(o.x.label)).map(o=>o.tx).join(" | ");tr.querySelector(".hsel summary").textContent=set.size+" horário(s)";salvarOvr(a);refDup()});
+ const set=new Set(slotsAv(a.disp).map(x=>x.label));c.checked?set.add(c.dataset.hp):set.delete(c.dataset.hp);
+ a.disp=OPC.filter(o=>set.has(o.x.label)).map(o=>o.tx).join(" | ");tr.querySelector(".hsel summary").textContent=resumoH(set);salvarOvr(a);refDup()});
 $("bro").onclick=()=>{try{localStorage.removeItem(ovrK())}catch(e){}OVR={};if($("la").value.trim())lerAval();else st("Recarregue o arquivo de avaliadores.","")};
 function drawG(){const el=$("gg");
  if(!GRD){$("mvbar").hidden=true;el.innerHTML=`<p class="mut" style="padding:8px">Sem dados para montar a grade ainda (carregue os projetos e os avaliadores).</p>`;return}
@@ -513,7 +529,7 @@ $("mvb").onclick=()=>{const q=$("mvp").value.trim(),f=fold(q);let p=GRP.get(q);i
 $("mvc").onclick=()=>{MANV={};salvarMan();agendarCalc();st("Ajustes manuais da grade removidos.","ok")};
 // ===== GRAVAÇÃO NA PLANILHA DE AVALIADORES (Apps Script: Code_avaliadores.gs) =====
 // Cole a URL (/exec) e o TOKEN do Apps Script de cada núcleo. Vazio = desligado.
-const SYNCAV={SEMCITEC:{url:"https://script.google.com/macros/s/AKfycbxvmGuTzHI3AqASCuL82SFAlsi2p9BP4cdLwfxgMB_8T9FgWBzYxhqhwpfo0kfapa3Jzw/exec",token:"Alice01@"},FECEG:{url:"",token:""}};
+const SYNCAV={SEMCITEC:{url:"https://script.google.com/macros/s/AKfycbxvmGuTzHI3AqASCuL82SFAlsi2p9BP4cdLwfxgMB_8T9FgWBzYxhqhwpfo0kfapa3Jzw/exec",token:"Alice01@"},FECEG:{url:"",token:"Alice01@"}};
 const syncAv=()=>!!(SYNCAV[modo]&&SYNCAV[modo].url),PENDA=new Map();let envA=null,avT=null;
 const sav=(m,c="")=>{$("sav").textContent=$("pr_s").textContent=m;$("sav").style.color=c==="er"?"var(--er)":c==="ok"?"var(--ok)":"";$("brA").className=PENDA.size?"":"hid"};
 function agendarAv(a){if(!syncAv()||!$("syA").checked||!a.k0)return;PENDA.set(modo+"\t"+a.k0,{modo,n0:a.n0,e0:a.e0,disp:a.disp,aprov:!!a.aprov,pre:!!a.pre,ref:a,...Object.fromEntries(["nome","inst","email","areas"].filter(k=>a[k]!==a.o0[k]).map(k=>[k,a[k]]))});
@@ -534,7 +550,7 @@ function drawGF(){const g=GRD.g,nd=GRD.nd,dv=$("mvd").value,el=$("gg");GRP=new M
  $("dlp").innerHTML=[...GRP.keys()].map(k=>`<option value="${esc(k)}">`).join("");
  const na=a=>a?esc(a.nome)+" ("+esc(a.inst)+")":"NÃO ALOCADO",lista=L=>L.map(a=>esc(a.nome)+" ("+esc(a.inst)+")").join("; ")||"Nenhum avaliador",
   pj=(p,on)=>`<div class="pj"><span>${MANV[p.id]?"✎ ":""}<b>${esc(p.id)}</b> ${esc(p.titulo)}<div class="avn">${(p.avals||[]).map(na).join("; ")}</div></span>${on?"":`<button class="lk" data-pick="${esc(p.id)}" title="Selecionar para mover">↪</button>`}</div>`;
- el.innerHTML='<div class="board">'+`<div class="col"><h3>Online</h3><div class="avn">${g.on.length} aval. · ${g.online.length} proj. (automático)</div><div class="avn">${lista(g.on)}</div>${g.online.map(p=>pj(p,1)).join("")}</div>`+
+ el.innerHTML='<div class="board">'+(g.onl?`<div class="col"><h3>Online</h3><div class="avn">${g.on.length} aval. · ${g.online.length} proj. (automático)</div><div class="avn">${lista(g.on)}</div>${g.online.map(p=>pj(p,1)).join("")}</div>`:"")+
   g.cols.map(c=>`<div class="col"><h3>${esc(c.t)}</h3><div class="avn">Salão de Artes · ${c.av.length} aval. · ${c.pr.length} proj.</div><div class="avn">${lista(c.av)}</div>${c.pr.map(p=>pj(p)).join("")}</div>`).join("")+
   `<div class="col"><h3>Sem turno presencial</h3><div class="avn">${nd.length} proj.</div>${nd.map(p=>pj(p)).join("")}</div></div>`}
 // ===== PRÉ-AVALIAÇÃO TRAVADA + ESTADO NA PLANILHA =====
