@@ -651,20 +651,11 @@ $("pr_r").onclick=()=>{if(!confirm("Refazer do zero apaga TODAS as travas e redi
 // ===== PROJETOS POR AVALIADOR (FECEG): uma coluna por avaliador, projetos por período de disponibilidade =====
 const ALVO=3,kAv=a=>a.nome+"|"+a.inst;
 
-function normalizarWhatsApp(v){
- const d=String(v||"").replace(/\D/g,"");
- if(!d)return"";
- if(d.startsWith("55")&&d.length>=12)return d;
- if((d.length===10||d.length===11))return"55"+d;
- return d;
-}
-
-async function compartilharAvaliador(idx){
+async function salvarPrintAvaliador(idx){
  const card=$("avcard-"+idx);
  if(!card)return;
  const a=card._avaliador||{};
  const nome=a.nome||"avaliador";
- const phone=normalizarWhatsApp(a.telefone);
  const btn=card.querySelector(".wa-btn");
  try{
   if(typeof html2canvas!=="function")throw new Error("O módulo de captura de tela não foi carregado.");
@@ -681,35 +672,17 @@ async function compartilharAvaliador(idx){
   });
   const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/png"));
   if(!blob)throw new Error("Não foi possível gerar a imagem.");
-  const file=new File([blob],`projetos-${nome.replace(/[^\wÀ-ÿ]+/g,"-")}.png`,{type:"image/png"});
-  const waUrl=phone?`https://wa.me/${phone}?text=${encodeURIComponent("Olá, "+nome+". Segue a sua distribuição de projetos para avaliação.")}`:"https://web.whatsapp.com/";
-  let compartilhado=false;
-
-  // Em dispositivos/navegadores com Web Share, permite escolher o WhatsApp e enviar a imagem.
-  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-   try{await navigator.share({files:[file],title:"Projetos para avaliação",text:"Projetos para avaliação - "+nome});compartilhado=true}catch(e){}
-  }
-
-  if(!compartilhado){
-   let copiou=false;
-   try{
-    if(navigator.clipboard&&window.ClipboardItem){
-     await navigator.clipboard.write([new ClipboardItem({"image/png":blob})]);
-     copiou=true;
-    }
-   }catch(e){}
-   const aEl=document.createElement("a");
-   aEl.href=URL.createObjectURL(blob);aEl.download=file.name;aEl.style.display="none";
-   document.body.appendChild(aEl);
-   if(!copiou)aEl.click();
-   setTimeout(()=>URL.revokeObjectURL(aEl.href),1500);
-   window.open(waUrl,"_blank","noopener");
-   st(copiou
-     ? `Imagem de ${nome} copiada. O WhatsApp foi aberto; cole a imagem (Ctrl+V) na conversa.`
-     : `Imagem de ${nome} salva como PNG. O WhatsApp foi aberto; anexe a imagem na conversa.`,"ok");
-  }else st(`Imagem de ${nome} compartilhada.`,"ok");
+  const nomeArquivo=`projetos-${nome.replace(/[^\wÀ-ÿ]+/g,"-")}.png`;
+  const aEl=document.createElement("a");
+  aEl.href=URL.createObjectURL(blob);
+  aEl.download=nomeArquivo;
+  aEl.style.display="none";
+  document.body.appendChild(aEl);
+  aEl.click();
+  setTimeout(()=>{URL.revokeObjectURL(aEl.href);aEl.remove()},1500);
+  st(`Print de ${nome} salvo como PNG.`,"ok");
  }catch(e){
-  st(`Não foi possível capturar ${nome}: ${e.message}`,"er");
+  st(`Não foi possível salvar o print de ${nome}: ${e.message}`,"er");
  }finally{if(btn)btn.disabled=false}
 }
 
@@ -759,7 +732,7 @@ function drawV(){
   const card=`<div class="avcard" id="${aid}">
    <div class="avhead">
     <h3>${esc(c.a.nome)}</h3>
-    <button class="wa-btn" type="button" data-wa="${idx}" title="Capturar todos os projetos deste avaliador e preparar para envio pelo WhatsApp">📸 WhatsApp</button>
+    <button class="wa-btn" type="button" data-wa="${idx}" title="Salvar um print com todos os projetos deste avaliador">📸 Salvar print</button>
    </div>
    <div class="avn">${esc(c.a.inst)} · ${c.np} projeto(s)${c.a.telefone?" · "+esc(c.a.telefone):""}</div>
    ${(c.ps.map(x=>{
@@ -775,7 +748,7 @@ function drawV(){
   `<div style="margin-top:8px">${falta.map(p=>`<div class="pj"><span><b>${esc(p.id)}</b> ${esc(p.titulo)} ${bd(p)}<div class="avn">${esc(p.inst)}</div></span></div>`).join("")||'<div class="avn">Nenhum projeto pendente.</div>'}</div></details></div>`;
 
  cols.forEach((c,idx)=>{const card=$("avcard-"+idx);if(card)card._avaliador=c.a});
- el.querySelectorAll("[data-wa]").forEach(b=>b.addEventListener("click",()=>compartilharAvaliador(+b.dataset.wa)));
+ el.querySelectorAll("[data-wa]").forEach(b=>b.addEventListener("click",()=>salvarPrintAvaliador(+b.dataset.wa)));
 }
 
 $("qv").oninput=drawV;
