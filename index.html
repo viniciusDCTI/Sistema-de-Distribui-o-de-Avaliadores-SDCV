@@ -133,7 +133,7 @@ details.hint{margin:4px 0 8px}details.hint summary{cursor:pointer;color:var(--ac
 // ===== LINKS SALVOS: planilha de projetos fixa de cada núcleo =====
 const LINKS_SALVOS={SEMCITEC:{lp:"https://docs.google.com/spreadsheets/d/1ISTv8UmUl-6Qhzf6zfyHi6hGw1UBgzdt4kcRUOHNpTQ/edit?usp=drive_link",la:"https://docs.google.com/spreadsheets/d/1oiZZSgBFabz_yiXdmaoJuKF8nyu0NRXOYztpoKIX7g0/edit?usp=sharing",lr:""},FECEG:{lp:"https://docs.google.com/spreadsheets/d/1Zwdz0YqeqzLQ_t-KqQL_X6UKjQt-5A-Voq7ooB4JerE/edit?usp=sharing",la:"https://docs.google.com/spreadsheets/d/1t9cjFLS9uc4lKrjcHkwpoFbIWqVE9pZpn_-xSlVfS9U/edit?gid=998766160#gid=998766160",lr:""}};
 // ===== SINCRONIZAÇÃO DAS EXCLUSÕES COM A PLANILHA OFICIAL =====
-// URL (/exec) do Code.gs de cada núcleo (único script: projetos + avaliadores + e-mails + pré-avaliação + estado + recusados). Sem senha. Vazio = sincronização desligada.
+// URL (/exec) do Code.gs de cada núcleo (planilha de projetos). Sem senha. Vazio = sincronização desligada.
 const SYNC={SEMCITEC:{url:"https://script.google.com/macros/s/AKfycbyPTM0pjvoZyYHS0Rrp8aOB3-2ZLqur85wfBPslUvFjQXW4Mjw0g-fLdZCuSptxxwASdQ/exec"},FECEG:{url:"https://script.google.com/macros/s/AKfycbwQrdTcmuw3Avv1IRVdNgc_LzIa4zQ5JNMglyQmK43Zdjn7Q7H7-4YqvlcuwKpSQRSa/exec"}};
 const ES={p:false,a:false};let RPEND=0;
 let ULT=null;
@@ -689,8 +689,8 @@ $("mvb").onclick=()=>{if(GRADE_STATE.locked)return st("A grade está travada. De
  salvarMan();agendarCalc();$("mvp").value="";st(`Projeto ${p.id} atualizado na grade.`,"ok")};
 $("mvc").onclick=()=>{if(GRADE_STATE.locked)return st("A grade está travada. Destrave antes de limpar ajustes.","er");MANV={};salvarMan();agendarCalc();st("Ajustes manuais da grade removidos.","ok")};
 // ===== GRAVAÇÃO NA PLANILHA DE AVALIADORES (Apps Script: Code_avaliadores.gs) =====
-// Avaliadores, pré-avaliação e configurações usam o mesmo script de cada núcleo (SYNC acima).
-const SYNCAV=SYNC; // um único script (Code.gs) por núcleo
+// Avaliadores, pré-avaliação e configurações usam o script da planilha de avaliadores de cada núcleo.
+const SYNCAV={SEMCITEC:{url:"https://script.google.com/macros/s/AKfycbxvmGuTzHI3AqASCuL82SFAlsi2p9BP4cdLwfxgMB_8T9FgWBzYxhqhwpfo0kfapa3Jzw/exec"},FECEG:{url:"https://script.google.com/macros/s/AKfycbyL5AaUrNkRaROyD7CpsXxpPGMu7X1Ndvbs_0RkpA4w44-FtSz6fuY86Ywj0OjU05nhIA/exec"}}; // script ligado à planilha de avaliadores de cada núcleo
 const syncAv=()=>!!(SYNCAV[modo]&&SYNCAV[modo].url),PENDA=new Map();let envA=null,avT=null;
 const sav=(m,c="")=>{$("sav").textContent=$("pr_s").textContent=m;$("sav").style.color=c==="er"?"var(--er)":c==="ok"?"var(--ok)":"";$("brA").className=PENDA.size?"":"hid";ES.a=c==="er";indSave()};
 function agendarAv(a){if(!syncAv()||!$("syA").checked||!a.k0)return;PENDA.set(modo+"\t"+a.k0,{modo,n0:a.n0,e0:a.e0,disp:a.disp,aprov:!!a.aprov,pre:!!a.pre,ref:a,...Object.fromEntries(["nome","inst","email","areas"].filter(k=>a[k]!==a.o0[k]).map(k=>[k,a[k]]))});
