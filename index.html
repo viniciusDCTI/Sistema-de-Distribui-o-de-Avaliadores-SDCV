@@ -122,7 +122,7 @@ details.hint{margin:4px 0 8px}details.hint summary{cursor:pointer;color:var(--ac
 </section>
 <section class="card hid" id="sI"><h2>Instituições <span class="mut" id="nInst"></span></h2>
 <details class="hint"><summary>ℹ Como funciona</summary><p class="mut">Resumo por instituição dos projetos e avaliadores carregados. Atualiza sozinho quando você edita ou exclui linhas. Confira antes de gerar o relatório.</p></details>
-<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 10px"><label for="lim" style="display:inline;margin:0">Limite total de projetos</label><input type="number" id="lim" min="0" value="216" style="width:110px"><span id="resCota" class="mut"></span></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 10px"><label for="lim" style="display:inline;margin:0">Limite total de projetos</label><input type="number" id="lim" min="0" value="215" style="width:110px"><span id="resCota" class="mut"></span></div>
 <div class="tw" id="gInst"></div><div id="dInst"></div></section>
 <section class="card hid" id="sR"><h2>Distribuição <span class="mut">atualizada automaticamente</span></h2>
 <div id="wd" class="av" style="margin:0 0 12px" hidden></div>
@@ -142,7 +142,7 @@ let EMAIL_STATUS={};
 for(const m of Object.keys(CFG)){CFG[m].emailTemplates=Object.assign(JSON.parse(JSON.stringify(MAIL_PADRAO)),CFG[m].emailTemplates||{});CFG[m].emailTemplates.ok=Object.assign({},MAIL_PADRAO.ok,CFG[m].emailTemplates.ok||{});CFG[m].emailTemplates.recusado=Object.assign({},MAIL_PADRAO.recusado,CFG[m].emailTemplates.recusado||{});}
 const salvarCfg=()=>{try{localStorage.setItem("sdcv_cfg",JSON.stringify(CFG))}catch(e){}agendarEst()};
 (()=>{const C=CFG.FECEG,f=k=>k.replace(/^(\d{2}\/\d{2}\/)(\d{2})_/,(m,a,b)=>a+"20"+b+"_");C.off=(C.off||[]).map(f);const c={};Object.entries(C.capSlot||{}).forEach(([k,v])=>c[f(k)]=v);C.capSlot=c;if(!Array.isArray(C.cat))C.cat=[];if(!Array.isArray(C.extra))C.extra=[];if(C.onlineOn===undefined)C.onlineOn=true})();
-const LIMITES={SEMCITEC:120,FECEG:216},ABA_FILA="Fila de espera";
+const LIMITES={SEMCITEC:120,FECEG:215},ABA_FILA="Fila de espera";
 const DIAS=["Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado","Domingo"];
 const EXTRAS=["verificação","telefone (autor 1)","telefone (autor 2)","telefone (autor 3)","e-mail orientadores(as)"];
 const INST={"UNIFESP":["unifesp","universidade federal de sao paulo"],"USP":["usp","universidade de sao paulo"],"UFABC":["ufabc","universidade federal do abc"],"UFRJ":["ufrj"],"UFPE":["ufpe"],"UFRN":["universidade federal do rio grande do norte"],"UNESP":["unesp"],
