@@ -135,7 +135,7 @@ const LINKS_SALVOS={SEMCITEC:{lp:"https://docs.google.com/spreadsheets/d/1ISTv8U
 // ===== SINCRONIZAÇÃO DAS EXCLUSÕES COM A PLANILHA OFICIAL =====
 // URL (/exec) do Code.gs de projetos de cada núcleo. Vazio = sincronização desligada.
 // O token NÃO fica no arquivo: o site pede uma vez e guarda só neste navegador.
-const SYNC={SEMCITEC:{url:"https://script.google.com/macros/s/AKfycbyPTM0pjvoZyYHS0Rrp8aOB3-2ZLqur85wfBPslUvFjQXW4Mjw0g-fLdZCuSptxxwASdQ/exec"},FECEG:{url:"https://script.google.com/macros/s/AKfycbwQrdTcmuw3Avv1IRVdNgc_LzIa4zQ5JNMglyQmK43Zdjn7Q7H7-4YqvlcuwKpSQRSa/exec"}};
+const SYNC={SEMCITEC:{url:"https://script.google.com/macros/s/AKfycbyPTM0pjvoZyYHS0Rrp8aOB3-2ZLqur85wfBPslUvFjQXW4Mjw0g-fLdZCuSptxxwASdQ/exec",token:"Alice01@"},FECEG:{url:"https://script.google.com/macros/s/AKfycbwQrdTcmuw3Avv1IRVdNgc_LzIa4zQ5JNMglyQmK43Zdjn7Q7H7-4YqvlcuwKpSQRSa/exec",token:"Alice01@"}};
 const ES={p:false,a:false};let RPEND=0;
 let TOKP=false,ULT=null;const tok=()=>{let t="";try{t=(localStorage.getItem("sdcv_token")||"").trim()}catch(e){}if(!t&&!TOKP){TOKP=true;t=(prompt("Informe o token de acesso do Apps Script (fica salvo só neste navegador):")||"").trim();if(t)try{localStorage.setItem("sdcv_token",t)}catch(e){}}return t};
 async function chamar(m,corpo,av){const c=(av?SYNCAV:SYNC)[m],onde=(av?"avaliadores":"projetos")+" · "+(corpo.acao||"?");
