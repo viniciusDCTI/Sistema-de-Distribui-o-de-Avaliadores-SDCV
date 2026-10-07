@@ -137,12 +137,19 @@ const LINKS_SALVOS={SEMCITEC:{lp:"https://docs.google.com/spreadsheets/d/1ISTv8U
 const SYNC={SEMCITEC:{url:"https://script.google.com/macros/s/AKfycbyPTM0pjvoZyYHS0Rrp8aOB3-2ZLqur85wfBPslUvFjQXW4Mjw0g-fLdZCuSptxxwASdQ/exec"},FECEG:{url:"https://script.google.com/macros/s/AKfycbwQrdTcmuw3Avv1IRVdNgc_LzIa4zQ5JNMglyQmK43Zdjn7Q7H7-4YqvlcuwKpSQRSa/exec"}};
 const ES={p:false,a:false};let RPEND=0;let MAILPEND=false,mailT=null,mailEnv=null,MAILW=0,estPend=false,estV=0,prePend=false;const MAILREM=new Map();
 let ULT=null;
-async function chamar(m,corpo,av){const c=(av?SYNCAV:SYNC)[m],onde=(av?"avaliadores":"projetos")+" · "+(corpo.acao||"?");
- try{if(!c||!c.url)throw new Error("endereço do script não configurado");
-  const r=await fetch(c.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({modo:m,...corpo})});
-  const tx=await r.text();let j;try{j=JSON.parse(tx)}catch(e){throw new Error("o endereço não respondeu como o Code.gs (HTTP "+r.status+"). Confira se a implantação é App da Web com acesso 'Qualquer pessoa' e se a NOVA VERSÃO foi implantada.")}
-  if(!j.ok)throw new Error(j.erro||"resposta inválida")
-  return j}
+const FILAW={},ESPERA=ms=>new Promise(r=>setTimeout(r,ms)),RETRY={};
+function retentar(k,f){const n=RETRY[k]=(RETRY[k]||0)+1;clearTimeout(RETRY["t"+k]);RETRY["t"+k]=setTimeout(f,Math.min(60000,4000*2**Math.min(n-1,4)))}
+function retOk(k){RETRY[k]=0;clearTimeout(RETRY["t"+k])}
+async function chamar(m,corpo,av){const c=(av?SYNCAV:SYNC)[m],onde=(av?"avaliadores":"projetos")+" · "+m+" · "+(corpo.acao||"?"),escrita=!/^(ler|ping)/.test(corpo.acao||"");
+ const exec=async()=>{if(!c||!c.url)throw new Error("endereço do script não configurado");let ult;
+  for(let t=0;t<3;t++){const ac=new AbortController(),to=setTimeout(()=>ac.abort(),45000);
+   try{const r=await fetch(c.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({modo:m,...corpo}),signal:ac.signal});const tx=await r.text();let j;
+    try{j=JSON.parse(tx)}catch(e){const er=new Error("o script ("+c.url.slice(-14)+") não respondeu como o Code.gs (HTTP "+r.status+")."+(r.status===404?" 404 = implantação inexistente ou URL antiga: copie a URL atual em Implantar > Gerenciar implantações.":" Confira se a implantação é App da Web com acesso 'Qualquer pessoa' e se a NOVA VERSÃO foi implantada."));er.fatal=r.status===404||r.status===401||r.status===403;throw er}
+    if(!j.ok){const er=new Error(j.erro||"resposta inválida");er.fatal=true;throw er}return j}
+   catch(e){ult=e.name==="AbortError"?new Error("o script demorou mais de 45 s para responder"):e;if(ult.fatal||t===2)throw ult;await ESPERA(1500*(t+1))}
+   finally{clearTimeout(to)}}
+  throw ult};
+ try{return await(escrita?(FILAW[c&&c.url]=(FILAW[c&&c.url]||Promise.resolve()).catch(()=>{}).then(exec)):exec())}
  catch(e){ULT={onde,msg:String(e.message||e),t:new Date().toLocaleTimeString("pt-BR")};indSave();throw e}}
 function indSave(){const el=document.getElementById("saveInd");if(!el)return;const n=PEND.length+PENDA.size+(MAILPEND?1:0);el.title=ULT?"Último erro ("+ULT.t+") em "+ULT.onde+": "+ULT.msg+" — clique para detalhes e reenviar":"Clique para detalhes";
  if(n||ES.p||ES.a){el.textContent="⚠ pendente"+(n?" ("+n+")":"");el.style.color="var(--er)"}
@@ -151,7 +158,7 @@ function indSave(){const el=document.getElementById("saveInd");if(!el)return;con
 function detalheSave(){alert("Pendentes: "+PEND.length+" projeto(s), "+PENDA.size+" avaliador(es).\n\n"+(ULT?"Último erro ("+ULT.t+") em "+ULT.onde+":\n"+ULT.msg:"Nenhum erro registrado.")+"\n\nVou tentar de novo agora.");ES.p=false;ES.a=false;enviar();enviarAv();if(MAILPEND)enviarMail();if(syncAv()){estPend?enviarEst():lerEstSheet();if(modo==="SEMCITEC"){prePend?enviarPre():lerPreSheet()}}agendarFila();indSave()}
 function recusadoSync(p,remover){const m=modo,it=remover?{id:p.id,remover:true}:{id:p.id,titulo:p.titulo,inst:p.inst};RPEND++;indSave();
  chamar(m,{acao:"salvarRecusados",itens:[it]}).then(()=>{RPEND--;indSave()}).catch(e=>{RPEND--;ss("⚠ Recusado NÃO gravado na aba Recusados: "+e.message,"er")})}
-const CFG={SEMCITEC:{porAval:10,avalSala:3,avalSalaSeg:6,relatosSeg:5,salas:["Sala 1","Sala 2","Sala 3","Sala 4"],cap:[10,7,7,7,10,10,10],off:[],capSlot:{},extra:[],cat:[]},FECEG:{dataOnline:"13/10",porTurno:50,off:[],capSlot:{},extra:[],cat:[],onlineOn:true}};
+const CFG={SEMCITEC:{porAval:10,avalSala:3,avalSalaSeg:6,relatosSeg:5,salas:["Sala 1","Sala 2","Sala 3","Sala 4"],cap:[10,7,7,7,10,10,10],off:[],capSlot:{},extra:[],cat:[]},FECEG:{dataOnline:"13/10",porTurno:50,porAval:5,off:[],capSlot:{},extra:[],cat:[],onlineOn:true}};
 try{const sv=JSON.parse(localStorage.getItem("sdcv_cfg"));if(sv)for(const m in sv)Object.assign(CFG[m]||{},sv[m]);for(const m in LINKS_SALVOS){const v=localStorage.getItem("sdcv_lp_"+m);if(v)LINKS_SALVOS[m].lp=v}}catch(e){}
 const MAIL_PADRAO={ok:{subject:"Seu projeto foi aprovado — Semana do Conhecimento",body:"Olá, {representante}!\n\nTemos uma ótima notícia: o projeto \"{projeto}\" foi aprovado.\n\nA apresentação está prevista para {dia_apresentacao}, no horário {horario_avaliacao}.\n\nAtenciosamente,\nEquipe Semana do Conhecimento"},recusado:{subject:"Resultado da avaliação do projeto",body:"Olá, {representante}!\n\nInformamos que o projeto \"{projeto}\", da instituição {instituicao}, não foi aprovado nesta edição.\n\nAgradecemos a participação.\n\nAtenciosamente,\nEquipe Semana do Conhecimento"}};
 let EMAIL_STATUS={};
@@ -406,21 +413,21 @@ let FILA=[],SELP=[],PROJ_OK=false,filaT=null;const filaSig={};
 const recK=()=>"sdcv_rec_"+modo,lerRec=()=>{try{return new Set(JSON.parse(localStorage.getItem(recK()))||[])}catch(e){return new Set()}},
  salvaRec=f=>{try{const c=lerRec();f(c);localStorage.setItem(recK(),JSON.stringify([...c]))}catch(e){}};
 const cmpId=(a,b)=>String(a.id).localeCompare(String(b.id),undefined,{numeric:true}),ordId=L=>L.sort(cmpId);
-let PEND=[],envP=null;
+let PEND=[],envP=null,envT=null;const agEnviar=()=>{clearTimeout(envT);envT=setTimeout(enviar,700)};
 const syncOn=()=>!!(SYNC[modo]&&SYNC[modo].url);
 const ss=(m,c="")=>{$("ss").textContent=m;$("ss").style.color=c==="er"?"var(--er)":c==="ok"?"var(--ok)":"";$("bre").className=PEND.length?"":"hid";ES.p=c==="er";indSave()};
 function excluir(p){salvaRec(c=>c.delete(String(p.id)));if(!syncOn()||!$("sy").checked||p.noSync)return;
- const o=p.o||{id:p.id,titulo:p.titulo,autor1:String(p.autores||"").split("; ")[0]||"",situacao:p.situacao};PEND.push({modo,acao:"excluir",...o});enviar()}
+ const o=p.o||{id:p.id,titulo:p.titulo,autor1:String(p.autores||"").split("; ")[0]||"",situacao:p.situacao};PEND.push({modo,acao:"excluir",...o});agEnviar()}
 function editarProj(p,k,v){if(!syncOn()||!$("sy").checked||!p||!p.o||p.noSync)return;
  v=String(v??"").trim();if(k==="id"&&!v)return ss("⚠ O ID não pode ficar vazio: esta edição não foi enviada à planilha oficial.","er");
  const campo=isO(k)?"orient":k,valor=isO(k)?p.orient:v;PEND.push({modo,acao:"editar",...p.o,campo,valor});
- const o={...p.o};if(k==="id")o.id=v;if(k==="titulo")o.titulo=v;if(k==="autores")o.autor1=v.split(/\s*;\s*/)[0].trim();if(k==="situacao")o.situacao=v;p.o=o;enviar()}
+ const o={...p.o};if(k==="id")o.id=v;if(k==="titulo")o.titulo=v;if(k==="autores")o.autor1=v.split(/\s*;\s*/)[0].trim();if(k==="situacao")o.situacao=v;p.o=o;agEnviar()}
 function enviar(){return envP||(envP=(async()=>{try{
   while(PEND.length){const m=PEND[0].modo,lote=PEND.filter(x=>x.modo===m),c=SYNC[m];ss(`Atualizando a planilha oficial (${lote.length})...`);
    const j=await chamar(m,{acao:"projetos",itens:lote.map(({acao,id,titulo,autor1,situacao,campo,valor})=>({acao,id,titulo,autor1,situacao,campo,valor}))});
-   PEND=PEND.filter(x=>!lote.includes(x));const rs=j.resultados||[],nf=rs.filter(x=>x==="nao_encontrado").length,rc=rs.filter(x=>x==="campo_invalido"||x==="autores_demais").length;
+   PEND=PEND.filter(x=>!lote.includes(x));retOk("proj");const rs=j.resultados||[],nf=rs.filter(x=>x==="nao_encontrado").length,rc=rs.filter(x=>x==="campo_invalido"||x==="autores_demais").length;
    ss(rc?`Planilha atualizada, mas ${rc} edição(ões) foram recusadas (campo sem coluna na planilha ou mais autores do que colunas).`:nf?`Planilha atualizada, mas ${nf} item(ns) não foram encontrados nela (talvez já removidos).`:`Planilha oficial atualizada (${lote.length} alteração(ões)).`,rc?"er":nf?"":"ok")}
-  }catch(e){ss(`⚠ ${PEND.length} alteração(ões) NÃO enviada(s) à planilha oficial: ${e.message}. Use "Reenviar pendentes".`,"er")}
+  }catch(e){retentar("proj",enviar);ss(`⚠ ${PEND.length} alteração(ões) NÃO enviada(s) à planilha oficial: ${e.message}. Use "Reenviar pendentes".`,"er")}
   finally{envP=null}})())}
 addEventListener("beforeunload",e=>{if(PEND.length||PENDA.size||MAILPEND||estPend){e.preventDefault();e.returnValue=""}});
 const tipoDe=c=>{c=norm(c);return c.includes("relato")?"Relato":(c.includes("pesquisa")||c.includes("academica"))?"Pesquisa":"Outros"};
@@ -431,7 +438,7 @@ const ETAPAS=["Submissão","Avaliação","Aprovado"];
 const etapaDe=s=>{const f=fold(s).trim();return/^submiss/.test(f)?0:/^(em )?avaliac/.test(f)?1:/^aprov/.test(f)?2:-1};
 const SITF=["OK","Corrigir","Recusado"],SITK=["ok","corrig","recusad"];
 const etapaF=s=>{const f=fold(s).trim();return SITK.findIndex(k=>f.startsWith(k))};
-const emProj=s=>{const e=etapaDe(s);return e>=0||(modo==="FECEG"&&etapaF(s)>=0)};
+const emProj=s=>{const e=etapaDe(s);return e>=0||(modo==="FECEG"&&(etapaF(s)===0||etapaF(s)===1))};
 const selSit=s=>{if(modo==="FECEG"){const e=etapaF(s),v=String(s??"").trim();return`<select class="sit" aria-label="Situação">${SITF.map((n,i)=>`<option${i===e?" selected":""}>${n}</option>`).join("")}${e<0?(v?`<option selected>${esc(v)}</option>`:'<option value="" selected>(sem situação)</option>'):""}</select>`}
  const e=etapaDe(s),v=String(s??"").trim();return`<select class="sit" aria-label="Situação">${ETAPAS.map((n,i)=>`<option${i===e?" selected":""}>${n}</option>`).join("")}${e<0?(v?`<option selected>${esc(v)}</option>`:'<option value="" selected>(sem situação)</option>'):""}</select>`};
 function mudarEtapa(t,i,val){const L=t==="p"?P:O,p=L[i];if(!p||!val||val===p.situacao)return;const antes=p.situacao;p.situacao=val;const sy=modo==="FECEG"&&syncOn()&&$("sy").checked,recus=sy&&etapaF(val)===2&&etapaF(antes)!==2,saiuRec=sy&&etapaF(antes)===2&&etapaF(val)!==2;if(p.noSync&&modo==="FECEG")salvaRec(c=>c.delete(String(p.id)));editarProj(p,"situacao",val);if(recus||saiuRec)recusadoSync(p,saiuRec);const vaiP=emProj(val);let msg=`Situação alterada para "${val}".`+(recus?' Registrado também na aba "Recusados" da planilha oficial.':"");
@@ -581,7 +588,7 @@ function construirProj(t1,t2){const r=prepararProjetos(parseCsv(t1));
  if(t2){const sv=semSit;try{const rec=modo==="FECEG"?lerRec():null,
   lista=prepararProjetos(parseCsv(t2).map(r=>{r={...r};if(!("id da submissão" in r)){const k=Object.keys(r).find(k=>/^id(\s|$)/.test(k));if(k)r["id da submissão"]=r[k]}
   if(!("título" in r)&&"titulo" in r)r["título"]=r["titulo"];if(!("nome completo (autor 1)" in r)&&"autor1" in r)r["nome completo (autor 1)"]=r["autor1"];return r}));
-  lista.forEach(p=>{if(ja.has(p.id))return;ja.add(p.id);p.exc=true;if(rec&&rec.has(String(p.id))){p.situacao="Recusado";p.o.situacao="Recusado";p.noSync=true;p.dest="P"}else{p.situacao="Rejeitado";p.o.situacao="Rejeitado";p.dest="O"}ex.push(p)})}catch(e){}finally{semSit=sv}}
+  lista.forEach(p=>{if(ja.has(p.id))return;ja.add(p.id);p.exc=true;if(rec&&rec.has(String(p.id))){p.situacao="Recusado";p.o.situacao="Recusado";p.noSync=true;p.dest="O"}else{p.situacao="Rejeitado";p.o.situacao="Rejeitado";p.dest="O"}ex.push(p)})}catch(e){}finally{semSit=sv}}
  return{r,ex}}
 async function lerProj(){const n=++sq.p,l=LINKS_SALVOS[modo].lp;PROJ_OK=false;P=[];O=[];REMP.clear();draw("p");draw("x");if(!l)return st("Link dos projetos deste núcleo não configurado.","er");
  st("Carregando projetos de "+modo+"...");
@@ -673,11 +680,11 @@ const horaAgora=()=>new Date().toLocaleTimeString("pt-BR"),ABA_MODELOS="Modelos 
 const mailMsg=(m,c="")=>{const e=$("mailSt");e.textContent=m;e.style.color=c==="er"?"var(--er)":c==="ok"?"var(--ok)":""};
 // (b) salvar: guarda no navegador, grava na aba "Modelos de e-mail" (e no estado geral) e mostra o resultado REAL, não um "salvo" fixo
 function salvarMailTemplates(imediato){normalizarTemplates();const t=CFG[modo].emailTemplates;t.ok.subject=$("mailOkSub").value;t.ok.body=$("mailOkBody").value;t.recusado.subject=$("mailRecSub").value;t.recusado.body=$("mailRecBody").value;
- salvarCfg();MAILPEND=true;indSave();mailMsg("Alteração pendente — gravando na planilha...");clearTimeout(mailT);mailT=setTimeout(enviarMail,imediato===true?0:1200)}
+ try{localStorage.setItem("sdcv_cfg",JSON.stringify(CFG))}catch(e){}MAILPEND=true;indSave();mailMsg("Alteração pendente — gravando na planilha...");clearTimeout(mailT);mailT=setTimeout(enviarMail,imediato===true?0:2500)}
 function enviarMail(){clearTimeout(mailT);return mailEnv||(mailEnv=(async()=>{try{
   while(MAILPEND){MAILPEND=false;const m=modo;normalizarTemplates();const t=JSON.parse(JSON.stringify(CFG[m].emailTemplates));MAILW=Date.now();mailMsg("Gravando modelos na planilha...");
-   try{await chamar(m,{acao:"salvarModelosEmail",modelos:{ok:t.ok,recusado:t.recusado}},true);MAILW=Date.now();if(!MAILPEND)mailMsg("✔ Modelos salvos na planilha às "+horaAgora(),"ok")}
-   catch(e){MAILPEND=true;mailMsg("⚠ NÃO gravou na planilha: "+e.message+(/a[cç][aã]o|inv[aá]lid|desconhec|unknown/i.test(e.message)?" — o script da planilha de avaliadores precisa do trecho Code_modelos_email.gs (reimplante).":"")+' Clique em "Salvar modelos" para tentar de novo.',"er");break}}
+   try{await chamar(m,{acao:"salvarModelosEmail",modelos:{ok:t.ok,recusado:t.recusado}},true);retOk("mail");agendarEst();MAILW=Date.now();if(!MAILPEND)mailMsg("✔ Modelos salvos na planilha às "+horaAgora(),"ok")}
+   catch(e){MAILPEND=true;retentar("mail",enviarMail);mailMsg("⚠ NÃO gravou na planilha: "+e.message+(/a[cç][aã]o|inv[aá]lid|desconhec|unknown/i.test(e.message)?" — o script da planilha de avaliadores precisa do trecho Code_modelos_email.gs (reimplante).":"")+' Clique em "Salvar modelos" para tentar de novo.',"er");break}}
  }finally{mailEnv=null;indSave()}})())}
 // (c) leitura: a aba "Modelos de e-mail" é lida por CSV a cada 10 s (sem usar cota do Apps Script)
 function tabelaModelos(t){const a=Papa.parse(t,{skipEmptyLines:true}).data,h=a.findIndex(r=>{const f=r.map(c=>fold(c).trim());return f.includes("modelo")&&f.includes("assunto")&&f.includes("corpo")});if(h<0)return null;const cab=a[h].map(c=>fold(c).trim());return a.slice(h+1).map(r=>Object.fromEntries(cab.map((c,i)=>[c,r[i]??""])))}
@@ -692,14 +699,14 @@ async function atualizarModelos(){const m=modo,la=($("la").value||"").trim(),id=
 const CF={SEMCITEC:[["porAval","Projetos por avaliador (pré-avaliação)"],["avalSala","Avaliadores por sala"],["avalSalaSeg","Avaliadores na sala de segunda-feira"],["relatosSeg","Relatos na segunda-feira"]],FECEG:[["porTurno","Projetos por turno presencial"],["dataOnline","Data da avaliação online (dd/mm)","text"]]};
 function drawCfg(){const C=CFG[modo],S=modo==="SEMCITEC";normalizarTemplates();
  $("cfgBody").innerHTML=`<label>Link da planilha de projetos<input data-lp type="text" value="${esc(LINKS_SALVOS[modo].lp)}"></label><div class="g2">`+CF[modo].map(([k,n,t])=>`<label>${n}<input data-cf="${k}" type="${t||"number"}" min="0" value="${esc(C[k])}"></label>`).join("")+"</div>"+
- (S?`<label>Salas (separadas por vírgula; a última recebe os Relatos)<input data-cf="salas" type="text" value="${esc(C.salas.join(", "))}"></label><label>Projetos por sala em cada dia da semana (por horário, ajuste na aba Horários)</label><div class="g2">${DIAS.map((d,i)=>`<label class="mut" style="font-weight:400">${d}<input data-cd="${i}" type="number" min="0" value="${C.cap[i]}"></label>`).join("")}</div>`:"")+(!S?`<div class="fld" style="margin:12px 0"><b>Avaliação online</b> <span class="mut">${C.onlineOn===false?"desativada: não aparece na grade nem nos arquivos.":"ativada: aparece como coluna Online na grade."}</span><div class="row" style="margin:8px 0 0"><button data-onl="1"${C.onlineOn===false?' class="p"':""}>${C.onlineOn===false?"Ativar":"Desativar"} avaliação online</button></div></div>`:"");drawMailTemplates()}
+ (S?`<label>Salas (separadas por vírgula; a última recebe os Relatos)<input data-cf="salas" type="text" value="${esc(C.salas.join(", "))}"></label><label>Projetos por sala em cada dia da semana (por horário, ajuste na aba Horários)</label><div class="g2">${DIAS.map((d,i)=>`<label class="mut" style="font-weight:400">${d}<input data-cd="${i}" type="number" min="0" value="${C.cap[i]}"></label>`).join("")}</div>`:"")+(!S?`<div class="fld" style="margin:12px 0"><b>Avaliação online</b> <span class="mut">${C.onlineOn===false?"desativada: não aparece na grade nem nos arquivos.":"ativada: aparece como coluna Online na grade."}</span><div class="row" style="margin:8px 0 0"><button data-onl="1"${C.onlineOn===false?' class="p"':""}>${C.onlineOn===false?"Ativar":"Desativar"} avaliação online</button></div></div>`:"");if(!S&&document.activeElement!==$("pa"))$("pa").value=CFG.FECEG.porAval||5;drawMailTemplates()}
 $("cfgBody").addEventListener("change",e=>{const t=e.target,C=CFG[modo];
  if(t.dataset.lp!=null){LINKS_SALVOS[modo].lp=t.value.trim();try{localStorage.setItem("sdcv_lp_"+modo,t.value.trim())}catch(x){}agendarEst();return void lerProj()}
  if(t.dataset.cf){const k=t.dataset.cf;C[k]=k==="salas"?t.value.split(",").map(x=>x.trim()).filter(Boolean):k==="dataOnline"?t.value.trim():Math.max(0,+t.value);if(k==="salas"&&!C.salas.length)C.salas=["Sala 1"]}
  else if(t.dataset.cd!=null)C.cap[+t.dataset.cd]=Math.max(0,+t.value);else return;
  salvarCfg();drawCfg();drawH();agendarCalc()});
 $("cfgBody").addEventListener("click",e=>{if(!e.target.closest("[data-onl]"))return;const C=CFG.FECEG;C.onlineOn=C.onlineOn===false;salvarCfg();drawCfg();agendarCalc();st(C.onlineOn?"Avaliação online ativada.":"Avaliação online desativada: removida da grade e dos arquivos.","ok")});
-["I","H","G","Q","V","R","C"].forEach(k=>$("t"+k).onclick=()=>aba(k));$("lr").onchange=$("pa").onchange=agendarCalc;
+["I","H","G","Q","V","R","C"].forEach(k=>$("t"+k).onclick=()=>aba(k));$("lr").onchange=agendarCalc;$("pa").onchange=()=>{const v=Math.min(20,Math.max(1,Math.round(+$("pa").value)||5));$("pa").value=v;CFG.FECEG.porAval=v;salvarCfg();agendarCalc()};
 // ===== SELETOR DE HORÁRIOS, GRADE E AJUSTES (salvos no navegador) =====
 let OPC=[],OVR={},MANV={},GRD=null,GRP=new Map(),DEST=[];
 let GRADE_STATE={locked:false,lockedAt:"",version:0,priority:{},rooms:{},snapshotMan:{}};
@@ -759,9 +766,9 @@ function agendarAv(a){if(!syncAv()||!$("syA").checked||!a.k0)return;PENDA.set(mo
 function enviarAv(){return envA||(envA=(async()=>{try{
   while(PENDA.size){const m=[...PENDA.values()][0].modo,lote=[...PENDA.entries()].filter(([,v])=>v.modo===m),c=SYNCAV[m];sav(`Gravando ${lote.length} avaliador(es) na planilha...`);
    const j=await chamar(m,{acao:"avaliadores",itens:lote.map(([,v])=>({n0:v.n0,e0:v.e0,disp:v.disp,aprov:v.aprov,pre:v.pre,nome:v.nome,inst:v.inst,email:v.email,areas:v.areas}))},true);
-   lote.forEach(([k,v],i)=>{if((j.resultados||[])[i]==="ok"){const a=v.ref;a.n0=a.nome;a.e0=a.email;a.o0={nome:a.nome,inst:a.inst,email:a.email,areas:a.areas}}PENDA.delete(k)});const bad=(j.resultados||[]).filter(x=>x!=="ok").length;
+   retOk("av");lote.forEach(([k,v],i)=>{if((j.resultados||[])[i]==="ok"){const a=v.ref;a.n0=a.nome;a.e0=a.email;a.o0={nome:a.nome,inst:a.inst,email:a.email,areas:a.areas}}PENDA.delete(k)});const bad=(j.resultados||[]).filter(x=>x!=="ok").length;
    sav(bad?`Planilha atualizada, mas ${bad} avaliador(es) não foram localizados ou ficaram ambíguos (confira nome e e-mail).`:`Planilha de avaliadores atualizada (${lote.length}).`,bad?"er":"ok")}
- }catch(e){sav(`⚠ ${PENDA.size} edição(ões) NÃO gravada(s) na planilha de avaliadores: ${e.message}. Use "Reenviar pendentes".`,"er")}
+ }catch(e){retentar("av",enviarAv);sav(`⚠ ${PENDA.size} edição(ões) NÃO gravada(s) na planilha de avaliadores: ${e.message}. Use "Reenviar pendentes".`,"er")}
  finally{envA=null}})())}
 $("brA").onclick=enviarAv;
 // ===== GRADE DA FECEG: Online (automático) + turnos presenciais =====
@@ -780,7 +787,7 @@ const preK=()=>"sdcv_pre_"+modo,agora=()=>new Date().toLocaleString("pt-BR",{dat
 const postAv=(m,o)=>chamar(m,o,true);
 function carPre(){try{PRF=JSON.parse(localStorage.getItem(preK()))||{}}catch(e){PRF={}}if(syncAv()){lerEstSheet();if(modo==="SEMCITEC")lerPreSheet()}}
 const salvarPre=()=>{try{localStorage.setItem(preK(),JSON.stringify(PRF))}catch(e){}if(modo==="SEMCITEC"&&syncAv()){prePend=true;clearTimeout(preT);preT=setTimeout(enviarPre,1000)}};
-async function enviarPre(){try{sav("Gravando a pré-avaliação na planilha...");const j=await postAv("SEMCITEC",{acao:"salvarPre",itens:Object.entries(PRF).map(([id,v])=>({id,...v}))});prePend=false;sav(`Pré-avaliação gravada na planilha (${j.n} projeto(s) travados).`,"ok")}catch(e){sav("⚠ Pré-avaliação NÃO gravada na planilha: "+e.message,"er")}}
+async function enviarPre(){try{sav("Gravando a pré-avaliação na planilha...");const j=await postAv("SEMCITEC",{acao:"salvarPre",itens:Object.entries(PRF).map(([id,v])=>({id,...v}))});retOk("pre");prePend=false;sav(`Pré-avaliação gravada na planilha (${j.n} projeto(s) travados).`,"ok")}catch(e){retentar("pre",enviarPre);sav("⚠ Pré-avaliação NÃO gravada na planilha: "+e.message,"er")}}
 async function lerPreSheet(poll){const m=modo;if(poll&&prePend)return false;try{const j=await postAv(m,{acao:"lerPre"});if(m!==modo)return false;
  const sg=hash53(JSON.stringify(j.itens||[])),k="pre|"+m;if(poll&&(SIGS.get(k)===sg||prePend))return false;SIGS.set(k,sg);
  if(j.itens.length){const igual=j.itens.length===Object.keys(PRF).length&&j.itens.every(i=>{const p=PRF[i.id];return p&&p.nome===i.nome&&p.inst===i.inst&&p.email===i.email&&p.t===i.t&&p.pi===i.pi&&p.em===i.em});
@@ -791,8 +798,8 @@ async function lerPreSheet(poll){const m=modo;if(poll&&prePend)return false;try{
  catch(e){if(poll)throw e;sav("⚠ Não consegui ler a pré-avaliação da planilha: "+e.message,"er");ES.a=false;indSave()}}
 const estadoLocal=()=>({cfg:CFG[modo],man:MANV,grade:GRADE_STATE,mail:CFG[modo].emailTemplates,links:{lp:LINKS_SALVOS[modo].lp,lr:LINKS_SALVOS[modo].lr}});
 function agendarEst(){if(!syncAv())return;estPend=true;estV++;clearTimeout(estT);estT=setTimeout(enviarEst,1500)}
-async function enviarEst(){clearTimeout(estT);const m=modo,v=estV,estado=JSON.parse(JSON.stringify(estadoLocal()));try{await postAv(m,{acao:"salvarEstado",modo:m,estado});if(v===estV)estPend=false;ES.a=false;indSave()}catch(e){sav("⚠ Configurações e ajustes NÃO gravados na planilha: "+e.message,"er")}}
-async function lerEstSheet(poll){const m=modo,bloq=()=>estPend||ES.a||editandoEm("#cfgBody,.mailbox,#gh");try{if(poll&&bloq())return false;const j=await postAv(m,{acao:"lerEstado",modo:m});if(m!==modo)return false;
+async function enviarEst(){clearTimeout(estT);const m=modo,v=estV,estado=JSON.parse(JSON.stringify(estadoLocal()));try{await postAv(m,{acao:"salvarEstado",modo:m,estado});retOk("est");if(v===estV)estPend=false;ES.a=false;indSave()}catch(e){retentar("est",enviarEst);sav("⚠ Configurações e ajustes NÃO gravados na planilha: "+e.message,"er")}}
+async function lerEstSheet(poll){const m=modo,bloq=()=>estPend||ES.a||MAILPEND||mailEnv||editandoEm("#cfgBody,.mailbox,#gh");try{if(poll&&bloq())return false;const j=await postAv(m,{acao:"lerEstado",modo:m});if(m!==modo)return false;
  const sg=hash53(JSON.stringify(j.estado||null)),k="est|"+m;if(poll){if(SIGS.get(k)===sg||bloq())return false}SIGS.set(k,sg);
  if(!j.estado){agendarEst();return false}
  if(poll&&hash53(JSON.stringify(estadoLocal()))===sg)return false;
