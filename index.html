@@ -136,8 +136,8 @@ const LINKS_SALVOS={SEMCITEC:{lp:"https://docs.google.com/spreadsheets/d/1ISTv8U
 // URL (/exec) do Code.gs de cada núcleo (planilha de projetos). Sem senha. Vazio = sincronização desligada.
 const SYNC={SEMCITEC:{url:"https://script.google.com/macros/s/AKfycbyPTM0pjvoZyYHS0Rrp8aOB3-2ZLqur85wfBPslUvFjQXW4Mjw0g-fLdZCuSptxxwASdQ/exec"},FECEG:{url:"https://script.google.com/macros/s/AKfycbwQrdTcmuw3Avv1IRVdNgc_LzIa4zQ5JNMglyQmK43Zdjn7Q7H7-4YqvlcuwKpSQRSa/exec"}};
 const ES={p:false,a:false};let RPEND=0;let MAILPEND=false,mailT=null,mailEnv=null,MAILW=0,estPend=false,estV=0,prePend=false;const MAILREM=new Map();
-let ULT=null;
-const FILAW={},ESPERA=ms=>new Promise(r=>setTimeout(r,ms)),RETRY={}; 
+let ULT=null,OKT="";const ERRS=new Map();
+const FILAW={},ESPERA=ms=>new Promise(r=>setTimeout(r,ms)),RETRY={};
 function retentar(k,f){const n=RETRY[k]=(RETRY[k]||0)+1;clearTimeout(RETRY["t"+k]);RETRY["t"+k]=setTimeout(f,Math.min(60000,4000*2**Math.min(n-1,4)))}
 function retOk(k){RETRY[k]=0;clearTimeout(RETRY["t"+k])}
 async function chamar(m,corpo,av){const c=(av?SYNCAV:SYNC)[m],onde=(av?"avaliadores":"projetos")+" · "+m+" · "+(corpo.acao||"?"),escrita=!/^(ler|ping)/.test(corpo.acao||"");
@@ -149,13 +149,17 @@ async function chamar(m,corpo,av){const c=(av?SYNCAV:SYNC)[m],onde=(av?"avaliado
    catch(e){ult=e.name==="AbortError"?new Error("o script demorou mais de 45 s para responder"):e;if(ult.fatal||t===2)throw ult;await ESPERA(1500*(t+1))}
    finally{clearTimeout(to)}}
   throw ult};
- try{return await(escrita?(FILAW[c&&c.url]=(FILAW[c&&c.url]||Promise.resolve()).catch(()=>{}).then(exec)):exec())}
- catch(e){ULT={onde,msg:String(e.message||e),t:new Date().toLocaleTimeString("pt-BR")};indSave();throw e}}
-function indSave(){const el=document.getElementById("saveInd");if(!el)return;const n=PEND.length+PENDA.size+(MAILPEND?1:0);el.title=ULT?"Último erro ("+ULT.t+") em "+ULT.onde+": "+ULT.msg+" — clique para detalhes e reenviar":"Clique para detalhes";
- if(n||ES.p||ES.a){el.textContent="⚠ pendente"+(n?" ("+n+")":"");el.style.color="var(--er)"}
- else if(envP||envA||RPEND){el.textContent="⏳ salvando...";el.style.color="var(--mut)"}
- else{el.textContent="✔ tudo salvo";el.style.color="var(--ok)"}}
-function detalheSave(){alert("Pendentes: "+PEND.length+" projeto(s), "+PENDA.size+" avaliador(es).\n\n"+(ULT?"Último erro ("+ULT.t+") em "+ULT.onde+":\n"+ULT.msg:"Nenhum erro registrado.")+"\n\nVou tentar de novo agora.");ES.p=false;ES.a=false;enviar();enviarAv();if(MAILPEND)enviarMail();if(syncAv()){estPend?enviarEst():lerEstSheet();if(modo==="SEMCITEC"){prePend?enviarPre():lerPreSheet()}}agendarFila();indSave()}
+ try{const rr=await(escrita?(FILAW[c&&c.url]=(FILAW[c&&c.url]||Promise.resolve()).catch(()=>{}).then(exec)):exec());ERRS.delete(onde);ULT=ERRS.size?[...ERRS.values()].pop():null;if(escrita)OKT=new Date().toLocaleTimeString("pt-BR");indSave();return rr}
+ catch(e){ULT={onde,msg:String(e.message||e),t:new Date().toLocaleTimeString("pt-BR")};ERRS.set(onde,ULT);indSave();throw e}}
+function indSave(){const el=document.getElementById("saveInd");if(!el)return;const n=PEND.length+PENDA.size+(MAILPEND?1:0);el.title=(n?"Aguardando envio: "+n+" alteração(ões). ":"")+(ULT?"Último erro ("+ULT.t+") em "+ULT.onde+": "+ULT.msg+" — clique para detalhes e reenviar":"Clique para detalhes");
+ if(envP||envA||RPEND){el.textContent="⏳ enviando"+(n?" ("+n+")":"")+"...";el.style.color="var(--mut)"}
+ else if(n||ES.p||ES.a){el.textContent="⚠ pendente"+(n?" ("+n+")":"");el.style.color="var(--er)"}
+ else{el.textContent="✔ tudo salvo"+(OKT?" às "+OKT:"");el.style.color="var(--ok)"}}
+async function detalheSave(){const L=[],cT=(p,ms)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error("sem resposta em "+ms/1000+" s")),ms))]);
+ if(syncOn()){try{const t0=Date.now();await cT(chamar(modo,{acao:"ping"}),15000);L.push("✔ Planilha de projetos ("+modo+"): conexão OK ("+(Date.now()-t0)+" ms)")}catch(e){L.push("✖ Planilha de projetos ("+modo+"): FALHOU — "+e.message+"\nURL em uso: "+((SYNC[modo]||{}).url||"(vazia)"))}}
+ if(syncAv()){try{const t0=Date.now();await cT(chamar(modo,{acao:"ping"},true),15000);L.push("✔ Planilha de avaliadores ("+modo+"): conexão OK ("+(Date.now()-t0)+" ms)")}catch(e){L.push("✖ Planilha de avaliadores ("+modo+"): FALHOU — "+e.message+"\nURL em uso: "+((SYNCAV[modo]||{}).url||"(vazia)"))}}
+ const it=PEND.slice(0,12).map(x=>"• "+(x.acao==="excluir"?"excluir":"editar"+(x.campo?" "+x.campo:""))+" · projeto "+x.id);
+ alert("Pendentes: "+PEND.length+" projeto(s), "+PENDA.size+" avaliador(es).\n\n"+(L.length?L.join("\n")+"\n\n":"")+(it.length?"Aguardando envio:\n"+it.join("\n")+(PEND.length>12?"\n… e mais "+(PEND.length-12):"")+"\n\n":"")+(ULT?"Último erro ("+ULT.t+") em "+ULT.onde+":\n"+ULT.msg:"Nenhum erro registrado.")+"\n\nVou tentar de novo agora.");ES.p=false;ES.a=false;enviar();enviarAv();if(MAILPEND)enviarMail();if(syncAv()){estPend?enviarEst():lerEstSheet();if(modo==="SEMCITEC"){prePend?enviarPre():lerPreSheet()}}agendarFila();indSave()}
 function recusadoSync(p,remover){const m=modo,it=remover?{id:p.id,remover:true}:{id:p.id,titulo:p.titulo,inst:p.inst};RPEND++;indSave();
  chamar(m,{acao:"salvarRecusados",itens:[it]}).then(()=>{RPEND--;indSave()}).catch(e=>{RPEND--;ss("⚠ Recusado NÃO gravado na aba Recusados: "+e.message,"er")})}
 const CFG={SEMCITEC:{porAval:10,avalSala:3,avalSalaSeg:6,relatosSeg:5,salas:["Sala 1","Sala 2","Sala 3","Sala 4"],cap:[10,7,7,7,10,10,10],off:[],capSlot:{},extra:[],cat:[]},FECEG:{dataOnline:"13/10",porTurno:50,porAval:5,off:[],capSlot:{},extra:[],cat:[],onlineOn:true}};
