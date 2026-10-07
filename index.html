@@ -156,8 +156,8 @@ function indSave(){const el=document.getElementById("saveInd");if(!el)return;con
  else if(n||ES.p||ES.a){el.textContent="⚠ pendente"+(n?" ("+n+")":"");el.style.color="var(--er)"}
  else{el.textContent="✔ tudo salvo"+(OKT?" às "+OKT:"");el.style.color="var(--ok)"}}
 async function detalheSave(){const L=[],cT=(p,ms)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error("sem resposta em "+ms/1000+" s")),ms))]);
- if(syncOn()){try{const t0=Date.now();await cT(chamar(modo,{acao:"ping"}),15000);L.push("✔ Planilha de projetos ("+modo+"): conexão OK ("+(Date.now()-t0)+" ms)")}catch(e){L.push("✖ Planilha de projetos ("+modo+"): FALHOU — "+e.message+"\nURL em uso: "+((SYNC[modo]||{}).url||"(vazia)"))}}
- if(syncAv()){try{const t0=Date.now();await cT(chamar(modo,{acao:"ping"},true),15000);L.push("✔ Planilha de avaliadores ("+modo+"): conexão OK ("+(Date.now()-t0)+" ms)")}catch(e){L.push("✖ Planilha de avaliadores ("+modo+"): FALHOU — "+e.message+"\nURL em uso: "+((SYNCAV[modo]||{}).url||"(vazia)"))}}
+ if(syncOn()){try{const t0=Date.now();await cT(chamar(modo,{acao:"ping"}),40000);L.push("✔ Planilha de projetos ("+modo+"): conexão OK ("+(Date.now()-t0)+" ms)")}catch(e){L.push("✖ Planilha de projetos ("+modo+"): FALHOU — "+e.message+"\nURL em uso: "+((SYNC[modo]||{}).url||"(vazia)"))}}
+ if(syncAv()){try{const t0=Date.now();await cT(chamar(modo,{acao:"ping"},true),40000);L.push("✔ Planilha de avaliadores ("+modo+"): conexão OK ("+(Date.now()-t0)+" ms)")}catch(e){L.push("✖ Planilha de avaliadores ("+modo+"): FALHOU — "+e.message+"\nURL em uso: "+((SYNCAV[modo]||{}).url||"(vazia)"))}}
  const it=PEND.slice(0,12).map(x=>"• "+(x.acao==="excluir"?"excluir":"editar"+(x.campo?" "+x.campo:""))+" · projeto "+x.id);
  alert("Pendentes: "+PEND.length+" projeto(s), "+PENDA.size+" avaliador(es).\n\n"+(L.length?L.join("\n")+"\n\n":"")+(it.length?"Aguardando envio:\n"+it.join("\n")+(PEND.length>12?"\n… e mais "+(PEND.length-12):"")+"\n\n":"")+(ULT?"Último erro ("+ULT.t+") em "+ULT.onde+":\n"+ULT.msg:"Nenhum erro registrado.")+"\n\nVou tentar de novo agora.");ES.p=false;ES.a=false;enviar();enviarAv();if(MAILPEND)enviarMail();if(syncAv()){estPend?enviarEst():lerEstSheet();if(modo==="SEMCITEC"){prePend?enviarPre():lerPreSheet()}}agendarFila();indSave()}
 function recusadoSync(p,remover){const m=modo,it=remover?{id:p.id,remover:true}:{id:p.id,titulo:p.titulo,inst:p.inst};RPEND++;indSave();
@@ -602,7 +602,7 @@ async function lerProj(){const n=++sq.p,l=LINKS_SALVOS[modo].lp;PROJ_OK=false;P=
   st(`${P.length} projeto(s) em Submissão/Avaliação/Aprovado carregados${O.length?` e ${O.length} em outras situações (aba "Outras situações")`:""}. Confira, edite ou exclua o que precisar a distribuição é atualizada sozinha.${nf?` ${nf} excedente(s) do limite de ${limAtual()} foram para a aba "Fila de espera".`:""}`,"ok")}
  catch(e){if(n===sq.p)st("Erro: "+e.message,"er")}}
 // ===== ATUALIZAÇÃO AUTOMÁTICA: só mexe no que mudou =====
-const AUTO={ms:10000,scriptCada:3,on:true,run:false,t:null,ciclo:1,ult:"",msg:"",err:""},TXT=new Map(),SIGS=new Map(),REMP=new Map(),REMA=new Set(),FAIL={};let AVSRC="link";
+const AUTO={ms:10000,scriptCada:6,on:true,run:false,t:null,ciclo:1,ult:"",msg:"",err:""},TXT=new Map(),SIGS=new Map(),REMP=new Map(),REMA=new Set(),FAIL={};let AVSRC="link";
 const editandoEm=sel=>{const ae=document.activeElement;if(ae&&ae!==document.body&&ae.closest&&ae.closest(sel)&&(ae.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)))return true;return!!document.querySelector(sel.split(",").map(x=>x.trim()+" details[open]").join(","))};
 const keyP=p=>(p.exc?"x":"")+p._s;
 function registrarRemocao(t,r){if(!r)return;if(isProj(t)){if(r._s)REMP.set(keyP(r),(REMP.get(keyP(r))||0)+1)}else if(t==="a"&&r.k0)REMA.add(r.k0)}
