@@ -417,6 +417,8 @@ let FILA=[],SELP=[],PROJ_OK=false,filaT=null;const filaSig={};
 const recK=()=>"sdcv_rec_"+modo,lerRec=()=>{try{return new Set(JSON.parse(localStorage.getItem(recK()))||[])}catch(e){return new Set()}},
  salvaRec=f=>{try{const c=lerRec();f(c);localStorage.setItem(recK(),JSON.stringify([...c]))}catch(e){}};
 const cmpId=(a,b)=>String(a.id).localeCompare(String(b.id),undefined,{numeric:true}),ordId=L=>L.sort(cmpId);
+const W={};function espera(k,ms,max=20000){const t=Date.now(),w=W[k];if(!w||t-w.u>ms*3)W[k]={a:t,u:t};else w.u=t;return Math.max(0,Math.min(ms,max-(t-W[k].a)))}
+function descarregarPend(){try{if(estPend){clearTimeout(estT);enviarEst()}if(PENDA.size){clearTimeout(avT);enviarAv()}if(PEND.length&&!envP){clearTimeout(envT);enviar()}if(W.f){clearTimeout(filaT);enviarFila(modo)}}catch(e){}}
 let PEND=[],envP=null,envT=null;const agEnviar=()=>{clearTimeout(envT);envT=setTimeout(enviar,700)};
 const syncOn=()=>!!(SYNC[modo]&&SYNC[modo].url);
 const ss=(m,c="")=>{$("ss").textContent=m;$("ss").style.color=c==="er"?"var(--er)":c==="ok"?"var(--ok)":"";$("bre").className=PEND.length?"":"hid";ES.p=c==="er";indSave()};
@@ -538,8 +540,8 @@ function drawSel(){const q=fold($("qs").value.trim()),L=SELP.map((p,i)=>[p,i+1])
  $("ns").textContent=`(${L.length===SELP.length?SELP.length:L.length+" de "+SELP.length})`;$("tS").textContent=`Projetos aprovados (${SELP.length})`;
  $("gs").innerHTML=SELP.length?"<table><tr>"+["#","ID","Título","Situação","Categoria","Autores","Instituição","Eixo"].map(h=>`<th>${h}</th>`).join("")+"</tr>"+L.map(([p,k])=>`<tr><td>${k}</td><td>${esc(p.id)}</td><td>${esc(p.titulo)}</td><td>${esc(p.situacao)}</td><td>${esc(p.cat)}</td><td>${esc(p.autores)}</td><td>${esc(p.inst)}</td><td>${esc(p.eixo)}</td></tr>`).join("")+"</table>":'<p style="padding:10px;color:var(--mut)">Nenhum projeto aprovado dentro do limite.</p>'}
 const sigFila=()=>modo+"|"+limAtual()+"|"+FILA.map(p=>[p.id,p.titulo,p.situacao,p.inst].join("~")).join("¦");
-function agendarFila(){clearTimeout(filaT);if(!PROJ_OK||!syncOn()||!$("sy").checked||filaSig[modo]===sigFila())return;const m=modo;filaT=setTimeout(()=>enviarFila(m),5000)}
-async function enviarFila(m){if(m!==modo||!PROJ_OK)return;await envP;if(m!==modo||!PROJ_OK)return;
+function agendarFila(){clearTimeout(filaT);if(!PROJ_OK||!syncOn()||!$("sy").checked||filaSig[modo]===sigFila())return;const m=modo;filaT=setTimeout(()=>enviarFila(m),espera("f",5000))}
+async function enviarFila(m){delete W.f;if(m!==modo||!PROJ_OK)return;await envP;if(m!==modo||!PROJ_OK)return;
  const c=SYNC[m],sig=sigFila(),lim=limAtual(),{vgE:vg}=calcSel(),lista=FILA.map((p,i)=>({posicao:i+1,id:p.id,titulo:p.titulo,autor1:String(p.autores||"").split("; ")[0]||"",inst:p.inst,cat:p.cat,situacao:p.situacao,motivo:`Limite de ${vg.get(p.inst)||0} projeto(s) para ${p.inst} atingido`}));
  try{ss("Atualizando a fila de espera na planilha oficial...");
   const j=await chamar(m,{acao:"fila",fila:{aba:ABA_FILA,limite:lim,lista}});
@@ -602,7 +604,7 @@ async function lerProj(){const n=++sq.p,l=LINKS_SALVOS[modo].lp;PROJ_OK=false;P=
   st(`${P.length} projeto(s) em Submissão/Avaliação/Aprovado carregados${O.length?` e ${O.length} em outras situações (aba "Outras situações")`:""}. Confira, edite ou exclua o que precisar a distribuição é atualizada sozinha.${nf?` ${nf} excedente(s) do limite de ${limAtual()} foram para a aba "Fila de espera".`:""}`,"ok")}
  catch(e){if(n===sq.p)st("Erro: "+e.message,"er")}}
 // ===== ATUALIZAÇÃO AUTOMÁTICA: só mexe no que mudou =====
-const AUTO={ms:30000,scriptCada:6,on:true,run:false,t:null,ciclo:1,ult:"",msg:"",err:""},TXT=new Map(),SIGS=new Map(),REMP=new Map(),REMA=new Set(),FAIL={};let AVSRC="link";
+const AUTO={ms:30000,cur:30000,semMud:0,fim:0,scriptCada:2,on:true,run:false,t:null,ciclo:1,ult:"",msg:"",err:""},TXT=new Map(),SIGS=new Map(),REMP=new Map(),REMA=new Set(),FAIL={};let AVSRC="link";
 const editandoEm=sel=>{const ae=document.activeElement;if(ae&&ae!==document.body&&ae.closest&&ae.closest(sel)&&(ae.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)))return true;return!!document.querySelector(sel.split(",").map(x=>x.trim()+" details[open]").join(","))};
 const keyP=p=>(p.exc?"x":"")+p._s;
 function registrarRemocao(t,r){if(!r)return;if(isProj(t)){if(r._s)REMP.set(keyP(r),(REMP.get(keyP(r))||0)+1)}else if(t==="a"&&r.k0)REMA.add(r.k0)}
@@ -690,7 +692,7 @@ function enviarMail(){clearTimeout(mailT);return mailEnv||(mailEnv=(async()=>{tr
    try{await chamar(m,{acao:"salvarModelosEmail",modelos:{ok:t.ok,recusado:t.recusado}},true);retOk("mail");agendarEst();MAILW=Date.now();if(!MAILPEND)mailMsg("✔ Modelos salvos na planilha às "+horaAgora(),"ok")}
    catch(e){MAILPEND=true;retentar("mail",enviarMail);mailMsg("⚠ NÃO gravou na planilha: "+e.message+(/a[cç][aã]o|inv[aá]lid|desconhec|unknown/i.test(e.message)?" — o script da planilha de avaliadores precisa do trecho Code_modelos_email.gs (reimplante).":"")+' Clique em "Salvar modelos" para tentar de novo.',"er");break}}
  }finally{mailEnv=null;indSave()}})())}
-// (c) leitura: a aba "Modelos de e-mail" é lida por CSV a cada 10 s (sem usar cota do Apps Script)
+// (c) leitura: a aba "Modelos de e-mail" é lida por CSV a cada 2 ciclos da atualização automática (sem usar cota do Apps Script)
 function tabelaModelos(t){const a=Papa.parse(t,{skipEmptyLines:true}).data,h=a.findIndex(r=>{const f=r.map(c=>fold(c).trim());return f.includes("modelo")&&f.includes("assunto")&&f.includes("corpo")});if(h<0)return null;const cab=a[h].map(c=>fold(c).trim());return a.slice(h+1).map(r=>Object.fromEntries(cab.map((c,i)=>[c,r[i]??""])))}
 async function atualizarModelos(){const m=modo,la=($("la").value||"").trim(),id=(la.match(/\/spreadsheets\/d\/([\w-]+)/)||[])[1],ocupado=()=>MAILPEND||mailEnv||Date.now()-MAILW<30000||editandoEm(".mailbox");
  if(!id||ocupado())return false;let t;try{t=await lerCsvT(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent(ABA_MODELOS)}`)}catch(e){return false}
@@ -767,8 +769,8 @@ const syncAv=()=>!!(SYNCAV[modo]&&SYNCAV[modo].url),PENDA=new Map();let envA=nul
 
 const sav=(m,c="")=>{$("sav").textContent=$("pr_s").textContent=m;$("sav").style.color=c==="er"?"var(--er)":c==="ok"?"var(--ok)":"";$("brA").className=PENDA.size?"":"hid";ES.a=c==="er";indSave()};
 function agendarAv(a){if(!syncAv()||!$("syA").checked||!a.k0)return;PENDA.set(modo+"\t"+a.k0,{modo,n0:a.n0,e0:a.e0,disp:a.disp,aprov:!!a.aprov,pre:!!a.pre,ref:a,...Object.fromEntries(["nome","inst","email","areas"].filter(k=>a[k]!==a.o0[k]).map(k=>[k,a[k]]))});
- sav(`${PENDA.size} edição(ões) de avaliadores aguardando envio...`);clearTimeout(avT);avT=setTimeout(enviarAv,3000)}
-function enviarAv(){return envA||(envA=(async()=>{try{
+ sav(`${PENDA.size} edição(ões) de avaliadores aguardando envio...`);clearTimeout(avT);avT=setTimeout(enviarAv,espera("a",3000))}
+function enviarAv(){delete W.a;return envA||(envA=(async()=>{try{
   while(PENDA.size){const m=[...PENDA.values()][0].modo,lote=[...PENDA.entries()].filter(([,v])=>v.modo===m),c=SYNCAV[m];sav(`Gravando ${lote.length} avaliador(es) na planilha...`);
    const j=await chamar(m,{acao:"avaliadores",itens:lote.map(([,v])=>({n0:v.n0,e0:v.e0,disp:v.disp,aprov:v.aprov,pre:v.pre,nome:v.nome,inst:v.inst,email:v.email,areas:v.areas}))},true);
    retOk("av");lote.forEach(([k,v],i)=>{if((j.resultados||[])[i]==="ok"){const a=v.ref;a.n0=a.nome;a.e0=a.email;a.o0={nome:a.nome,inst:a.inst,email:a.email,areas:a.areas}}PENDA.delete(k)});const bad=(j.resultados||[]).filter(x=>x!=="ok").length;
@@ -802,8 +804,8 @@ async function lerPreSheet(poll){const m=modo;if(poll&&prePend)return false;try{
  if(!poll)sav("Pré-avaliação sincronizada com a planilha.","ok");return false}
  catch(e){if(poll)throw e;sav("⚠ Não consegui ler a pré-avaliação da planilha: "+e.message,"er");ES.a=false;indSave()}}
 const estadoLocal=()=>({cfg:CFG[modo],man:MANV,grade:GRADE_STATE,mail:CFG[modo].emailTemplates,links:{lp:LINKS_SALVOS[modo].lp,lr:LINKS_SALVOS[modo].lr}});
-function agendarEst(){if(!syncAv())return;estPend=true;estV++;clearTimeout(estT);estT=setTimeout(enviarEst,4000)}
-async function enviarEst(){clearTimeout(estT);const m=modo,v=estV,estado=JSON.parse(JSON.stringify(estadoLocal()));try{await postAv(m,{acao:"salvarEstado",modo:m,estado});retOk("est");if(v===estV)estPend=false;ES.a=false;indSave()}catch(e){retentar("est",enviarEst);sav("⚠ Configurações e ajustes NÃO gravados na planilha: "+e.message,"er")}}
+function agendarEst(){if(!syncAv())return;estPend=true;estV++;clearTimeout(estT);estT=setTimeout(enviarEst,espera("e",4000))}
+async function enviarEst(){clearTimeout(estT);delete W.e;const m=modo,v=estV,estado=JSON.parse(JSON.stringify(estadoLocal()));try{await postAv(m,{acao:"salvarEstado",modo:m,estado});retOk("est");if(v===estV)estPend=false;ES.a=false;indSave()}catch(e){retentar("est",enviarEst);sav("⚠ Configurações e ajustes NÃO gravados na planilha: "+e.message,"er")}}
 async function lerEstSheet(poll){const m=modo,bloq=()=>estPend||ES.a||MAILPEND||mailEnv||editandoEm("#cfgBody,.mailbox,#gh");try{if(poll&&bloq())return false;const j=await postAv(m,{acao:"lerEstado",modo:m});if(m!==modo)return false;
  const sg=hash53(JSON.stringify(j.estado||null)),k="est|"+m;if(poll){if(SIGS.get(k)===sg||bloq())return false}SIGS.set(k,sg);
  if(!j.estado){agendarEst();return false}
@@ -934,24 +936,26 @@ $("qv").oninput=drawV;
 $("saveInd").style.cursor="pointer";$("saveInd").onclick=detalheSave;
 $("bPing").onclick=async()=>{const o=[];for(const av of[false,true]){const nm=av?"Avaliadores":"Projetos";try{const j=await chamar(modo,{acao:"ping"},av);const d=av?j.avaliadores:j.projetos;if(!d)throw new Error(av?"o endereço de avaliadores não é um script de avaliadores (ou é versão antiga)":"o endereço de projetos não é um script de projetos (ou é versão antiga)");o.push(nm+": OK — "+d.planilha+" / aba "+d.aba+(!av&&d.temColunaId===false?" (SEM coluna 'id da submissão')":""))}catch(e){o.push(nm+": FALHOU — "+e.message)}}alert(o.join("\n"))};
 setModo("SEMCITEC");
-// ===== MOTOR DA ATUALIZAÇÃO AUTOMÁTICA (a cada 10 s) =====
+// ===== MOTOR DA ATUALIZAÇÃO AUTOMÁTICA (a cada AUTO.ms, adaptativo) =====
 // Planilhas lidas por CSV (projetos, excluídos, avaliadores, recomendações, modelos de e-mail): a cada ciclo.
 // Leituras via Apps Script (configurações, pré-avaliação, status de e-mail): a cada AUTO.scriptCada ciclos, para não gastar a cota do Google.
 function pintarAuto(rodando){const el=$("autoInd");if(!el)return;
- if(!AUTO.on){el.textContent="⏸ Auto desligado";el.style.color="var(--mut)";el.title="Clique para ligar a atualização automática (10 s)";return}
- el.textContent=rodando?"↻ atualizando...":(AUTO.err?"⚠ Auto 10s · falha":"↻ Auto 10s · "+(AUTO.ult||"aguardando"));el.style.color=AUTO.err?"var(--er)":"var(--mut)";
+ if(!AUTO.on){el.textContent="⏸ Auto desligado";el.style.color="var(--mut)";el.title="Clique para ligar a atualização automática ("+Math.round(AUTO.ms/1000)+" s)";return}
+ el.textContent=rodando?"↻ atualizando...":(AUTO.err?"⚠ Auto "+Math.round(AUTO.ms/1000)+"s · falha":"↻ Auto "+Math.round(AUTO.ms/1000)+"s · "+(AUTO.ult||"aguardando"));el.style.color=AUTO.err?"var(--er)":"var(--mut)";
  el.title=(AUTO.err?"Falha: "+AUTO.err+"\n":"")+(AUTO.msg||"Nenhuma mudança detectada desde a última carga")+"\nClique para pausar/retomar"}
 async function rodar(k,f,erros,limita){if(limita&&(FAIL[k]||0)>=3)return null;try{const r=await f();FAIL[k]=0;return r}catch(e){FAIL[k]=(FAIL[k]||0)+1;erros.push(k+": "+(e&&e.message||e));return null}}
 async function tickAuto(manual){if(AUTO.run)return;AUTO.run=true;pintarAuto(true);const t0=Date.now(),erros=[];
  try{if(manual)Object.keys(FAIL).forEach(k=>FAIL[k]=0);
-  const doScripts=manual||AUTO.ciclo++%AUTO.scriptCada===0,jobs=[["projetos",atualizarProj],["avaliadores",atualizarAval],["recomendações",atualizarRec],["modelos",atualizarModelos]];
-  if(doScripts){if(syncAv()){jobs.push(["configurações",()=>lerEstSheet(true),1]);if(modo==="SEMCITEC")jobs.push(["pré-avaliação",()=>lerPreSheet(true),1])}if(syncOn())jobs.push(["status de e-mail",()=>lerEmailStatus(true),1])}
+  const doScripts=manual||AUTO.ciclo++%AUTO.scriptCada===0,jobs=[["projetos",atualizarProj],["avaliadores",atualizarAval]];
+  if(doScripts){jobs.push(["recomendações",atualizarRec],["modelos",atualizarModelos]);if(syncAv()){jobs.push(["configurações",()=>lerEstSheet(true),1]);if(modo==="SEMCITEC")jobs.push(["pré-avaliação",()=>lerPreSheet(true),1])}if(syncOn())jobs.push(["status de e-mail",()=>lerEmailStatus(true),1])}
   const rs=await Promise.all(jobs.map(([k,f,l])=>rodar(k,f,erros,l))),mud=rs.filter(x=>typeof x==="string");
-  AUTO.ult=horaAgora();AUTO.err=erros.join(" | ");if(mud.length)AUTO.msg=AUTO.ult+" — "+mud.join("; ")}
+  AUTO.ult=horaAgora();AUTO.err=erros.join(" | ");if(mud.length)AUTO.msg=AUTO.ult+" — "+mud.join("; ");
+  AUTO.semMud=mud.length||manual?0:AUTO.semMud+1;AUTO.cur=erros.length?Math.min(120000,Math.max(AUTO.cur,AUTO.ms)*2):AUTO.ms*(AUTO.semMud>=8?2:AUTO.semMud>=4?1.5:1)}
  catch(e){AUTO.err=String(e&&e.message||e)}
- finally{AUTO.run=false;pintarAuto();agendarAuto(Math.max(1000,AUTO.ms-(Date.now()-t0)))}}
+ finally{AUTO.run=false;AUTO.fim=Date.now();pintarAuto();agendarAuto(Math.max(1000,AUTO.cur-(Date.now()-t0)))}}
 function agendarAuto(ms){clearTimeout(AUTO.t);if(!AUTO.on)return;AUTO.t=setTimeout(()=>{if(document.hidden){agendarAuto(AUTO.ms);return}tickAuto()},ms)}
-document.addEventListener("visibilitychange",()=>{if(!document.hidden&&AUTO.on){clearTimeout(AUTO.t);tickAuto()}});
+document.addEventListener("visibilitychange",()=>{if(document.hidden){descarregarPend();return}if(AUTO.on){AUTO.semMud=0;AUTO.cur=AUTO.ms;if(Date.now()-AUTO.fim>10000){clearTimeout(AUTO.t);tickAuto()}}});
+addEventListener("pagehide",descarregarPend);
 $("autoInd").onclick=()=>{AUTO.on=!AUTO.on;try{localStorage.setItem("sdcv_auto",AUTO.on?"1":"0")}catch(e){}pintarAuto();if(AUTO.on)tickAuto();else clearTimeout(AUTO.t)};
 $("autoNow").onclick=()=>{clearTimeout(AUTO.t);tickAuto(true)};
 try{AUTO.on=localStorage.getItem("sdcv_auto")!=="0"}catch(e){}
