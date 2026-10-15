@@ -112,6 +112,7 @@ details.hint{margin:4px 0 8px}details.hint summary{cursor:pointer;color:var(--ac
 <div id="gctrl" class="bar" hidden><button id="gLock" class="p">🔒 Travar sugestão presencial</button><button id="gUnlock" hidden>🔓 Destravar</button><span id="gLockSt" class="mut"></span></div>
 <div id="prioBox" class="fld" hidden><div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><b>Prioridade por instituição — FECEG</b><button type="button" id="prioMin" style="padding:2px 10px;font-size:.8rem">Minimizar</button></div><div id="prioBody"><div class="mut" style="margin:4px 0 8px">Defina a prioridade antes de travar a grade. <b>1 = maior prioridade</b>; 0 = normal. Projetos das instituições prioritárias entram primeiro na distribuição.</div><div id="prioG"></div></div></div>
 <div id="mvbar" class="bar" hidden><input id="mvp" list="dlp" placeholder="Projeto (nome ou ID)" aria-label="Projeto"><datalist id="dlp"></datalist><select id="mvd" aria-label="Destino"></select><button id="mvb" class="p">Aplicar</button><button id="mvc">Limpar ajustes</button></div>
+<div id="avbar" class="bar" hidden><b>Mover avaliador (SEMCITEC):</b><select id="avs" aria-label="Avaliador, dia e sala atuais"></select><span class="mut">→</span><select id="avd" aria-label="Novo dia e sala"></select><button id="avb" class="p">Mover avaliador</button><button id="avc">Limpar mudanças de avaliadores</button><span id="avn" class="mut"></span></div>
 <div class="bar"><button id="gPrintAll">📸 Print completo da grade</button></div><div id="gg"></div></section>
 <section class="card hid" id="sQ"><h2>Pré-avaliação <span class="mut">projetos em Avaliação × avaliadores da pré</span></h2>
 <details class="hint"><summary>ℹ Como funciona</summary><p class="mut">Cada coluna é um avaliador da pré-avaliação com os projetos dele. Enquanto não estiver travada, a distribuição é automática e pode mudar. Ao clicar em "Travar pré-avaliação", os avaliadores atuais ficam fixos: não mudam mais, mesmo que você altere avaliadores ou horários. Projetos novos entram automaticamente e podem ser travados depois. Para trocar o avaliador de um projeto, digite o nome (ou ID), escolha o avaliador e clique em Aplicar (isso já trava). A trava fica salva neste navegador e, com a planilha de avaliadores conectada (SYNCAV), na aba "Pré-avaliação" dela, que é lida ao abrir o sistema.</p></details>
@@ -291,6 +292,21 @@ function parseSlots(t){const s=String(t??""),out=[],seen=new Set(),add=x=>{if(!s
 const slotCap=x=>CFG.SEMCITEC.capSlot[x.label]??CFG.SEMCITEC.cap[DIAS.indexOf(x.wd)]??10;
 const abaSlot=x=>x.data?x.data.replace(/\//g,"-")+(x.hora?" "+x.hora.split("-").map(t=>t.replace(/^0/,"").replace(":00","h").replace(":","h")).join("-"):""):x.wd;
 
+// ===== SEMCITEC: regra de pares por instituição e mudança manual de avaliador (sala/dia) =====
+// Prioriza 2 avaliadores da mesma instituição em cada sala (só na distribuição automática, antes de travar).
+function parearInst(disp,R,S,cap){const pp=new Set();if(cap<2)return pp;
+ const g=new Map();disp.forEach(a=>{if(String(a.inst||"").startsWith("Outros/Sem"))return;if(!g.has(a.inst))g.set(a.inst,[]);g.get(a.inst).push(a)});
+ const livres=l=>l.filter(a=>!pp.has(a));
+ R.forEach(s=>{const y=S[s];if(y.av.length)return;const c=[...g.values()].filter(l=>livres(l).length>=2).sort((p,q)=>livres(q).length-livres(p).length)[0];
+  if(c)livres(c).slice(0,2).forEach(a=>{y.av.push(a);y.ins.add(a.inst);pp.add(a)})});
+ return pp}
+// Aplica as mudanças manuais (GRADE_STATE.avMove["horário\tavaliador"] = sala, ou "-" para tirar daquele horário).
+function aplicarMovAval(x,S,salas,AP){const MV=GRADE_STATE.avMove||{};let mexeu=false;
+ Object.keys(MV).forEach(k=>{const i=k.indexOf("\t");if(k.slice(0,i)!==x.label)return;const ch=k.slice(i+1),dest=MV[k];mexeu=true;
+  salas.forEach(s=>{const y=S[s],j=y.av.findIndex(a=>chaveAval(a)===ch);if(j>=0)y.av.splice(j,1)});
+  if(dest!=="-"&&S[dest]){const a=AP.find(z=>chaveAval(z)===ch);if(a)S[dest].av.push(a)}});
+ if(mexeu)salas.forEach(s=>{S[s].ins=new Set(S[s].av.map(a=>a.inst))})}
+
 // P = projetos Aprovados (distribuídos por data/horário); PRE = projetos em Avaliação (pré-avaliação, sem limite de vagas)
 function semcitec(P,A,PRE=[]){const{porAval,avalSala,avalSalaSeg,relatosSeg,salas}=CFG.SEMCITEC,w=wb(),avisos=[],GR=[],AP=A.filter(a=>a.aprov),AV=A.filter(a=>a.aprov&&a.pre);
  AP.forEach(a=>a.sl=parseSlots(a.disp));
@@ -310,7 +326,8 @@ function semcitec(P,A,PRE=[]){const{porAval,avalSala,avalSalaSeg,relatosSeg,sala
  if(P.length)slots.forEach(x=>{const disp=AP.filter(a=>tem(a,x)),seg=x.wd===DIAS[0],cap=slotCap(x),S={};
   salas.forEach(s=>S[s]={av:[],ins:new Set(),pr:[]});
   if(GRADE_STATE.locked&&GRADE_STATE.rooms){(seg?[salas[0]]:salas).forEach(s=>{const ks=GRADE_STATE.rooms[x.label+"\t"+s]||[];ks.forEach(k=>{const a=A.find(z=>chaveAval(z)===k);if(a){S[s].av.push(a);S[s].ins.add(a.inst)}})});
-  }else disp.forEach(a=>{for(const s of(seg?[salas[0]]:salas)){const y=S[s];if(y.av.length<(seg?avalSalaSeg:avalSala)&&(a.inst.startsWith("Outros/Sem")||!y.ins.has(a.inst))){y.av.push(a);y.ins.add(a.inst);break}}});
+  }else(pp=>disp.filter(a=>!pp.has(a)))(parearInst(disp,seg?[salas[0]]:salas,S,seg?avalSalaSeg:avalSala)).forEach(a=>{for(const s of(seg?[salas[0]]:salas)){const y=S[s];if(y.av.length<(seg?avalSalaSeg:avalSala)&&(a.inst.startsWith("Outros/Sem")||!y.ins.has(a.inst))){y.av.push(a);y.ins.add(a.inst);break}}});
+  if(!GRADE_STATE.locked)aplicarMovAval(x,S,salas,AP);
   const colocados=salas.reduce((n,s)=>n+S[s].av.length,0);if(disp.length>colocados)avisos.push(`${x.label}: ${disp.length-colocados} avaliador(es) disponível(is) não couberam nas salas (limite de ${seg?avalSalaSeg:avalSala} por sala, sem repetir instituição na mesma sala).`);
   const pend=P.filter(p=>!aloc.has(p.id)&&!MAN()[p.id]),rel=pend.filter(p=>p.tipo==="Relato"),pes=pend.filter(p=>p.tipo!=="Relato");
   const ok=(p,y)=>![...y.ins].some(i=>conf(p,i)),put=(p,s,c)=>{S[s].pr.push(c?{...p,conflito:true}:p);aloc.add(p.id);loc[p.id]={x,sala:s,S:S[s]}};P.filter(p=>!aloc.has(p.id)&&MAN()[p.id]&&MAN()[p.id].l===x.label&&S[MAN()[p.id].s]).forEach(p=>put(p,MAN()[p.id].s,!ok(p,S[MAN()[p.id].s])));
@@ -802,6 +819,21 @@ function drawG(){const el=$("gg");drawPrioridades();atualizarControlesGrade();
  $("dlp").innerHTML=[...GRP.keys()].map(k=>`<option value="${esc(k)}">`).join("");
  const pj=p=>`<div class="pj"><span>${p.conflito?"⚠ ":""}${MANV[p.id]?"✎ ":""}<b>${esc(p.id)}</b> ${esc(p.titulo)}</span><button class="lk" data-pick="${esc(p.id)}" title="Selecionar para mover">↪</button></div>`,sm=(c,k)=>c.salas.reduce((n,r)=>n+r[k].length,0);
  el.innerHTML='<div class="board">'+G.map(c=>`<div class="col"><h3>${esc(c.x.data||c.x.wd)} ${esc(c.x.hora)}</h3><div class="avn">${esc(c.x.wd)} · ${sm(c,"av")} aval. · ${sm(c,"pr")} proj.</div>`+c.salas.map(r=>`<div class="sala"><b>${esc(r.s)}</b> <span class="avn">(${r.pr.length} proj.)</span><div class="avn">${r.av.map(a=>esc(a.nome)+" ("+esc(a.inst)+")").join("; ")||"Nenhum avaliador"}</div>${r.pr.map(pj).join("")}</div>`).join("")+"</div>").join("")+`<div class="col"><h3>Não distribuídos</h3><div class="avn">${nd.length} proj.</div>${nd.map(pj).join("")}</div></div>`}
+// ----- Mover avaliador de sala/dia (SEMCITEC) -----
+function drawAvBar(){const b=$("avbar");if(!b)return;const ok=modo==="SEMCITEC"&&!!GRD&&Array.isArray(GRD.g);b.hidden=!ok;if(!ok)return;
+ const lock=!!GRADE_STATE.locked,MV=GRADE_STATE.avMove||{},sv=$("avs").value,dv=$("avd").value,org=[],dst=[];
+ GRD.g.forEach(c=>c.salas.forEach(r=>{const h=`${c.x.data||c.x.wd} ${c.x.hora} · ${r.s}`;dst.push({v:c.x.label+"\t"+r.s,t:h});r.av.forEach(a=>org.push({v:c.x.label+"\t"+r.s+"\t"+chaveAval(a),t:`${MV[c.x.label+"\t"+chaveAval(a)]?"✎ ":""}${a.nome} (${a.inst}) — ${h}`}))}));
+ $("avs").innerHTML=org.map(o=>`<option value="${esc(o.v)}">${esc(o.t)}</option>`).join("")||'<option value="">Nenhum avaliador na grade</option>';
+ $("avd").innerHTML=dst.map(o=>`<option value="${esc(o.v)}">${esc(o.t)}</option>`).join("");
+ if([...$("avs").options].some(o=>o.value===sv))$("avs").value=sv;if([...$("avd").options].some(o=>o.value===dv))$("avd").value=dv;
+ b.querySelectorAll("select,button").forEach(x=>x.disabled=lock);const n=Object.keys(MV).length;$("avn").textContent=n?`✎ ${n} mudança(s) manual(is) de avaliador`:""}
+const _drawG0=drawG;drawG=function(){_drawG0.apply(this,arguments);drawAvBar()};
+$("avb").onclick=()=>{if(GRADE_STATE.locked)return st("A grade está travada. Destrave para mover avaliadores.","er");
+ const o=$("avs").value,d=$("avd").value;if(!o||!d)return st("Escolha o avaliador e o destino (dia e sala).","er");
+ const[l0,s0,ch]=o.split("\t"),[l1,s1]=d.split("\t");if(l0===l1&&s0===s1)return st("O avaliador já está nessa sala e nesse horário.","er");
+ const MV=GRADE_STATE.avMove=GRADE_STATE.avMove||{};if(l0!==l1)MV[l0+"\t"+ch]="-";MV[l1+"\t"+ch]=s1;
+ salvarGradeState();agendarCalc();st("Avaliador movido na grade.","ok")};
+$("avc").onclick=()=>{if(GRADE_STATE.locked)return st("A grade está travada. Destrave antes de limpar as mudanças.","er");GRADE_STATE.avMove={};salvarGradeState();agendarCalc();st("Mudanças manuais de avaliadores removidas.","ok")};
 $("gg").addEventListener("click",e=>{const b=e.target.closest("[data-pick]");if(!b)return;const p=[...GRP.entries()].find(([,v])=>String(v.id)===b.dataset.pick);if(p){$("mvp").value=p[0];$("mvp").scrollIntoView({block:"nearest"});$("mvd").focus()}});
 $("gLock").onclick=()=>{if(!GRD)return st("A grade ainda não foi calculada.","er");if(capturarTrava()){drawG();agendarCalc();st("Sugestão presencial travada e salva na planilha.","ok")}};
 $("gUnlock").onclick=destravarGrade;
