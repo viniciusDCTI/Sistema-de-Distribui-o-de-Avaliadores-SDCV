@@ -68,6 +68,25 @@ details.hint{margin:4px 0 8px}details.hint summary{cursor:pointer;color:var(--ac
 .pin-ext p{margin:2px 0 2px 12px;font-size:.88rem}.pin-ext .pin-per{font-weight:700;margin:8px 0 2px}
 .pin-lock{font-weight:700;margin:0 0 10px}.pin-lock.ok{color:var(--ok)}.pin-lock.warn{color:var(--er)}
 .pin-cath{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:12px 0 4px}.pin-catbox{background:#fff}
+.sx-leg{margin:4px 0 8px}
+.sx-slot{border:1px solid var(--line);border-radius:10px;margin:10px 0;background:#fff;overflow:hidden}
+.sx-slot>summary{cursor:pointer;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:9px 12px;background:#eef3fb;font-size:.95rem;list-style:none}
+.sx-slot>summary::-webkit-details-marker{display:none}
+.sx-slot>summary span:not(.sx-chip){color:var(--mut)}
+.sx-chip{background:#fff;border:1px solid var(--line);border-radius:999px;padding:1px 9px;font-size:.78rem;color:var(--mut)}
+.sx-w2{overflow-x:auto}
+.sx-t{border-collapse:collapse;width:100%;font-size:.85rem}
+.sx-t th{position:static;background:#f6f9fd;color:var(--mut);font-size:.72rem;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;border-bottom:1px solid var(--line)}
+.sx-t td{background:transparent;padding:6px 10px;border-bottom:1px solid #edf1f7;vertical-align:top;word-break:normal}
+.sx-t tbody.sx-r{border-top:2px solid var(--line)}
+.sx-t td.sx-sala{white-space:nowrap;background:#f7faff;min-width:70px}
+.sx-t td.sx-avs{min-width:210px;background:#fcfdff}
+.sx-av{display:flex;flex-direction:column;margin-bottom:5px}.sx-av span{color:var(--mut);font-size:.78rem}
+.sx-t td.sx-id{white-space:nowrap;color:var(--mut)}
+.sx-t td.sx-inst{color:#2b4a7a;font-weight:600}
+.sx-par{background:#e6f4ec;color:var(--ok);border-radius:4px;padding:0 5px;font-size:.7rem;font-style:normal;font-weight:700}
+.sx-tag{background:#fff3d6;color:#8a5a00;border-radius:4px;padding:0 5px;font-size:.7rem;font-weight:700}
+.sx-w{color:var(--er)}
 </style></head>
 <body><div class="app"><aside id="side"><h1>Manipulador de Dados</h1>
 <div class="modo"><button id="mS" class="on">SEMCITEC</button><button id="mF">FECEG</button></div>
@@ -304,7 +323,7 @@ function parearInst(disp,R,S,cap){const pp=new Set();if(cap<2)return pp;
 function aplicarMovAval(x,S,salas,AP){const MV=GRADE_STATE.avMove||{};let mexeu=false;
  Object.keys(MV).forEach(k=>{const i=k.indexOf("\t");if(k.slice(0,i)!==x.label)return;const ch=k.slice(i+1),dest=MV[k];mexeu=true;
   salas.forEach(s=>{const y=S[s],j=y.av.findIndex(a=>chaveAval(a)===ch);if(j>=0)y.av.splice(j,1)});
-  if(dest!=="-"&&S[dest]){const a=AP.find(z=>chaveAval(z)===ch);if(a)S[dest].av.push(a)}});
+  if(dest!=="-"&&S[dest]){const a=AP.find(z=>chaveAval(z)===ch);if(a&&(a.sl||[]).some(y=>y.label===x.label))S[dest].av.push(a)}});
  if(mexeu)salas.forEach(s=>{S[s].ins=new Set(S[s].av.map(a=>a.inst))})}
 
 // P = projetos Aprovados (distribuídos por data/horário); PRE = projetos em Avaliação (pré-avaliação, sem limite de vagas)
@@ -819,19 +838,39 @@ function drawG(){const el=$("gg");drawPrioridades();atualizarControlesGrade();
  $("dlp").innerHTML=[...GRP.keys()].map(k=>`<option value="${esc(k)}">`).join("");
  const pj=p=>`<div class="pj"><span>${p.conflito?"⚠ ":""}${MANV[p.id]?"✎ ":""}<b>${esc(p.id)}</b> ${esc(p.titulo)}</span><button class="lk" data-pick="${esc(p.id)}" title="Selecionar para mover">↪</button></div>`,sm=(c,k)=>c.salas.reduce((n,r)=>n+r[k].length,0);
  el.innerHTML='<div class="board">'+G.map(c=>`<div class="col"><h3>${esc(c.x.data||c.x.wd)} ${esc(c.x.hora)}</h3><div class="avn">${esc(c.x.wd)} · ${sm(c,"av")} aval. · ${sm(c,"pr")} proj.</div>`+c.salas.map(r=>`<div class="sala"><b>${esc(r.s)}</b> <span class="avn">(${r.pr.length} proj.)</span><div class="avn">${r.av.map(a=>esc(a.nome)+" ("+esc(a.inst)+")").join("; ")||"Nenhum avaliador"}</div>${r.pr.map(pj).join("")}</div>`).join("")+"</div>").join("")+`<div class="col"><h3>Não distribuídos</h3><div class="avn">${nd.length} proj.</div>${nd.map(pj).join("")}</div></div>`}
-// ----- Mover avaliador de sala/dia (SEMCITEC) -----
+// ----- Mover avaliador (SEMCITEC): só dentro do mesmo horário ou em outras datas em que ele tem disponibilidade -----
+function destAval(o){const[l0,s0,ch]=String(o||"").split("\t"),a=A.find(z=>chaveAval(z)===ch),out=[];if(!a||!GRD||!Array.isArray(GRD.g))return out;
+ const disp=new Set(parseSlots(a.disp).map(y=>y.label));
+ GRD.g.forEach(c=>{const same=c.x.label===l0;if(!same&&(!disp.has(c.x.label)||c.salas.some(r=>r.av.some(z=>chaveAval(z)===ch))))return;
+  c.salas.forEach(r=>{if(same&&r.s===s0)return;out.push({v:c.x.label+"\t"+r.s,g:same?`Mesmo horário (${c.x.data||c.x.wd} ${c.x.hora})`:"Outras datas em que ele está disponível",t:`${same?"":(c.x.data||c.x.wd)+" "+c.x.hora+" · "}${r.s} (${r.av.length} aval.)`})})});return out}
+function fillAvDest(keep){const L=destAval($("avs").value),gr=[...new Set(L.map(z=>z.g))];
+ $("avd").innerHTML=L.length?gr.map(g=>`<optgroup label="${esc(g)}">${L.filter(z=>z.g===g).map(z=>`<option value="${esc(z.v)}">${esc(z.t)}</option>`).join("")}</optgroup>`).join(""):'<option value="">Sem destino disponível</option>';
+ if(keep&&L.some(z=>z.v===keep))$("avd").value=keep}
 function drawAvBar(){const b=$("avbar");if(!b)return;const ok=modo==="SEMCITEC"&&!!GRD&&Array.isArray(GRD.g);b.hidden=!ok;if(!ok)return;
- const lock=!!GRADE_STATE.locked,MV=GRADE_STATE.avMove||{},sv=$("avs").value,dv=$("avd").value,org=[],dst=[];
- GRD.g.forEach(c=>c.salas.forEach(r=>{const h=`${c.x.data||c.x.wd} ${c.x.hora} · ${r.s}`;dst.push({v:c.x.label+"\t"+r.s,t:h});r.av.forEach(a=>org.push({v:c.x.label+"\t"+r.s+"\t"+chaveAval(a),t:`${MV[c.x.label+"\t"+chaveAval(a)]?"✎ ":""}${a.nome} (${a.inst}) — ${h}`}))}));
+ const lock=!!GRADE_STATE.locked,MV=GRADE_STATE.avMove||{},sv=$("avs").value,dv=$("avd").value,org=[];
+ GRD.g.forEach(c=>c.salas.forEach(r=>{const h=`${c.x.data||c.x.wd} ${c.x.hora} · ${r.s}`;r.av.forEach(a=>org.push({n:a.nome,o:c.x.ord,v:c.x.label+"\t"+r.s+"\t"+chaveAval(a),t:`${MV[c.x.label+"\t"+chaveAval(a)]?"✎ ":""}${a.nome} (${a.inst}) — ${h}`}))}));
+ org.sort((p,q)=>String(p.n).localeCompare(String(q.n),"pt-BR")||(p.o<q.o?-1:p.o>q.o?1:0));
  $("avs").innerHTML=org.map(o=>`<option value="${esc(o.v)}">${esc(o.t)}</option>`).join("")||'<option value="">Nenhum avaliador na grade</option>';
- $("avd").innerHTML=dst.map(o=>`<option value="${esc(o.v)}">${esc(o.t)}</option>`).join("");
- if([...$("avs").options].some(o=>o.value===sv))$("avs").value=sv;if([...$("avd").options].some(o=>o.value===dv))$("avd").value=dv;
+ if([...$("avs").options].some(o=>o.value===sv))$("avs").value=sv;fillAvDest(dv);
  b.querySelectorAll("select,button").forEach(x=>x.disabled=lock);const n=Object.keys(MV).length;$("avn").textContent=n?`✎ ${n} mudança(s) manual(is) de avaliador`:""}
-const _drawG0=drawG;drawG=function(){_drawG0.apply(this,arguments);drawAvBar()};
+$("avs").onchange=()=>fillAvDest();
+// ----- Grade da SEMCITEC em formato de planilha (com a instituição de cada projeto) -----
+function drawGradeTab(){if(modo!=="SEMCITEC"||!GRD||!Array.isArray(GRD.g))return;const el=$("gg");if(!el)return;
+ const G=GRD.g,nd=GRD.nd||[],MV=GRADE_STATE.avMove||{},sm=(c,k)=>c.salas.reduce((n,r)=>n+r[k].length,0);
+ const pj=p=>`<td class="sx-id">${MANV[p.id]?"✎ ":""}${esc(p.id)}</td><td>${p.conflito?'<span class="sx-w" title="Conflito de instituição entre projeto e avaliador">⚠</span> ':""}${esc(p.titulo)}</td><td class="sx-inst">${esc(p.inst||"—")}</td><td>${esc(p.cat||"")}${p.tipo==="Relato"?' <span class="sx-tag">Relato</span>':""}</td><td><button class="lk" data-pick="${esc(p.id)}" title="Selecionar para mover">↪</button></td>`;
+ const avh=(r,x)=>{if(!r.av.length)return'<span class="mut">Sem avaliador</span>';const n={};r.av.forEach(a=>n[a.inst]=(n[a.inst]||0)+1);
+  return r.av.map(a=>`<div class="sx-av"><b>${MV[x.label+"\t"+chaveAval(a)]?"✎ ":""}${esc(a.nome)}</b><span>${esc(a.inst)}${n[a.inst]>1&&!String(a.inst).startsWith("Outros/Sem")?' <em class="sx-par">par</em>':""}</span></div>`).join("")};
+ const sala=(c,r)=>{const k=Math.max(1,r.pr.length),a=`<td rowspan="${k}" class="sx-sala"><b>${esc(r.s)}</b><div class="mut">${r.pr.length} proj.</div></td><td rowspan="${k}" class="sx-avs">${avh(r,c.x)}</td>`;
+  return'<tbody class="sx-r">'+(r.pr.length?r.pr.map((p,i)=>`<tr>${i?"":a}${pj(p)}</tr>`).join(""):`<tr>${a}<td colspan="5" class="mut">Nenhum projeto nesta sala</td></tr>`)+"</tbody>"};
+ const head="<tr><th>Sala</th><th>Avaliadores</th><th>ID</th><th>Projeto</th><th>Instituição do projeto</th><th>Categoria</th><th></th></tr>";
+ el.innerHTML='<div class="mut sx-leg">⚠ conflito de instituição · ✎ ajuste manual · <em class="sx-par">par</em> = 2 avaliadores da mesma instituição na sala · ↪ seleciona o projeto para mover</div>'
+  +G.map(c=>`<details class="sx-slot" open><summary><b>${esc(c.x.data||c.x.wd)} ${esc(c.x.hora)}</b><span>${esc(c.x.wd)}</span><span class="sx-chip">${sm(c,"av")} aval.</span><span class="sx-chip">${sm(c,"pr")} proj.</span></summary><div class="sx-w2"><table class="sx-t"><thead>${head}</thead>${c.salas.map(r=>sala(c,r)).join("")}</table></div></details>`).join("")
+  +`<details class="sx-slot" open><summary><b>Não distribuídos</b><span class="sx-chip">${nd.length} proj.</span></summary>`+(nd.length?`<div class="sx-w2"><table class="sx-t"><thead><tr><th>ID</th><th>Projeto</th><th>Instituição do projeto</th><th>Categoria</th><th></th></tr></thead><tbody>${nd.map(p=>`<tr>${pj(p)}</tr>`).join("")}</tbody></table></div>`:'<p class="mut" style="padding:6px 10px">Todos os projetos foram distribuídos.</p>')+"</details>"}
+const _drawG0=drawG;drawG=function(){_drawG0.apply(this,arguments);drawGradeTab();drawAvBar()};
 $("avb").onclick=()=>{if(GRADE_STATE.locked)return st("A grade está travada. Destrave para mover avaliadores.","er");
  const o=$("avs").value,d=$("avd").value;if(!o||!d)return st("Escolha o avaliador e o destino (dia e sala).","er");
- const[l0,s0,ch]=o.split("\t"),[l1,s1]=d.split("\t");if(l0===l1&&s0===s1)return st("O avaliador já está nessa sala e nesse horário.","er");
- const MV=GRADE_STATE.avMove=GRADE_STATE.avMove||{};if(l0!==l1)MV[l0+"\t"+ch]="-";MV[l1+"\t"+ch]=s1;
+ if(!destAval(o).some(z=>z.v===d))return st("Destino não permitido: o avaliador só pode ir para outra sala do mesmo horário ou para uma data em que tem disponibilidade.","er");
+ const[l0,,ch]=o.split("\t"),[l1,s1]=d.split("\t"),MV=GRADE_STATE.avMove=GRADE_STATE.avMove||{};if(l0!==l1)MV[l0+"\t"+ch]="-";MV[l1+"\t"+ch]=s1;
  salvarGradeState();agendarCalc();st("Avaliador movido na grade.","ok")};
 $("avc").onclick=()=>{if(GRADE_STATE.locked)return st("A grade está travada. Destrave antes de limpar as mudanças.","er");GRADE_STATE.avMove={};salvarGradeState();agendarCalc();st("Mudanças manuais de avaliadores removidas.","ok")};
 $("gg").addEventListener("click",e=>{const b=e.target.closest("[data-pick]");if(!b)return;const p=[...GRP.entries()].find(([,v])=>String(v.id)===b.dataset.pick);if(p){$("mvp").value=p[0];$("mvp").scrollIntoView({block:"nearest"});$("mvd").focus()}});
