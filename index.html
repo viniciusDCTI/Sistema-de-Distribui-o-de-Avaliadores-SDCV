@@ -995,10 +995,10 @@ async function importarGrade(file){
   const known=new Set(GRD.g.map(c=>c.x.label)),salas=CFG.SEMCITEC.salas;
   sheets.forEach(sh=>sh.rows.forEach(r=>{
    if(!("sala"in r&&"tipo"in r&&"data"in r))return;
-   const tipo=String(r.tipo).trim().toUpperCase(),sala=String(r.sala).trim(),data=dataTxt(r.data),hora=String(r.horario??"").trim(),lab=data?data+(hora?" "+hora:""):String(r.dia??"").trim();
+   let sala=String(r.sala).trim();const tipo=String(r.tipo).trim().toUpperCase(),data=dataTxt(r.data),hora=String(r.horario??"").trim(),lab=data?data+(hora?" "+hora:""):String(r.dia??"").trim();
    if(!sala||!lab)return;
    if(!known.has(lab)){if(tipo==="PROJETO"||tipo==="AVALIADOR"||tipo==="SUPLENTE")sem.horario.add(lab);return}
-   if(!salas.includes(sala)){sem.sala.add(sala);return}
+   const sc=salas.find(z=>fold(z).replace(/\s+/g,"")===fold(sala).replace(/\s+/g,""));if(!sc){sem.sala.add(sala);return}sala=sc;
    if(tipo==="PROJETO"){const id=String(r["id projeto"]??"").trim();if(!id)return;if(!ids.has(id)){sem.proj++;return}base[id]={l:lab,s:sala};np++}
    else if(tipo==="AVALIADOR"||tipo==="SUPLENTE"){const nome=String(r.avaliador??"").trim();if(!nome)return;const a=achaAv(nome,r["instituicao avaliador"]);if(!a){sem.av.add(nome);return}
     if(!parseSlots(a.disp).some(y=>y.label===lab)){sem.disp++;return}
