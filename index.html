@@ -97,7 +97,7 @@ details.hint{margin:4px 0 8px}details.hint summary{cursor:pointer;color:var(--ac
 <details open><summary>Análise</summary><button class="nav" id="tI">Instituições</button><button class="nav" id="tD">Duplicados (0)</button></details>
 <details open><summary>Resultado</summary><button class="nav" id="tR">Distribuição</button></details>
 <details open><summary>Sistema</summary><button class="nav" id="tC">Configurações</button></details>
-</aside><main><div id="top" style="display:flex;gap:12px;align-items:center"><div id="st" style="flex:1">Carregando...</div><span id="autoInd" style="white-space:nowrap;font-size:.8rem;color:var(--mut);cursor:pointer" title="Clique para pausar/retomar"></span><button id="autoNow" title="Atualizar agora" aria-label="Atualizar agora" style="padding:2px 9px">↻</button><span id="saveInd" style="white-space:nowrap;font-weight:700"></span></div>
+</aside><main><div id="top" style="display:flex;gap:12px;align-items:center"><div id="st" style="flex:1">Carregando...</div><span id="autoInd" style="white-space:nowrap;font-size:.8rem;color:var(--mut);cursor:pointer" title="Clique para pausar/retomar"></span><label id="segLbl" style="display:flex;gap:5px;align-items:center;margin:0;font-weight:600;font-size:.8rem;white-space:nowrap;cursor:pointer" title="Pede confirmação ('Tem certeza?') antes de qualquer ação que muda a grade"><input type="checkbox" id="segTog" checked style="width:auto"> 🛡 Modo de segurança</label><button id="bUndo" disabled title="Desfaz a última alteração de horários, configurações ou ajustes da grade deste núcleo" style="padding:2px 9px">↶ Desfazer</button><button id="autoNow" title="Atualizar agora" aria-label="Atualizar agora" style="padding:2px 9px">↻</button><span id="saveInd" style="white-space:nowrap;font-weight:700"></span></div>
 <section class="card" id="sP"><h2>Projetos geral <span class="mut" id="np"></span></h2>
 <details class="hint"><summary>ℹ Como funciona</summary><p class="mut">Carregados automaticamente da planilha do núcleo. Mostra projetos em Submissão, Avaliação e Aprovado (os demais ficam na aba "Outras situações"). Clique em uma célula para editar, troque a etapa na coluna Situação; ✕ exclui a linha. Com a sincronização ligada, tudo é enviado à planilha oficial.</p></details>
 <div class="bar"><input id="qp" placeholder="Buscar projeto..." aria-label="Buscar projeto"><button id="bl">Recarregar do Drive</button></div>
@@ -202,7 +202,7 @@ try{const sv=JSON.parse(localStorage.getItem("sdcv_cfg"));if(sv)for(const m in s
 const MAIL_PADRAO={ok:{subject:"Seu projeto foi aprovado — Semana do Conhecimento",body:"Olá, {representante}!\n\nTemos uma ótima notícia: o projeto \"{projeto}\" foi aprovado.\n\nA apresentação está prevista para {dia_apresentacao}, no horário {horario_avaliacao}.\n\nAtenciosamente,\nEquipe Semana do Conhecimento"},recusado:{subject:"Resultado da avaliação do projeto",body:"Olá, {representante}!\n\nInformamos que o projeto \"{projeto}\", da instituição {instituicao}, não foi aprovado nesta edição.\n\nAgradecemos a participação.\n\nAtenciosamente,\nEquipe Semana do Conhecimento"}};
 let EMAIL_STATUS={};
 for(const m of Object.keys(CFG)){CFG[m].emailTemplates=Object.assign(JSON.parse(JSON.stringify(MAIL_PADRAO)),CFG[m].emailTemplates||{});CFG[m].emailTemplates.ok=Object.assign({},MAIL_PADRAO.ok,CFG[m].emailTemplates.ok||{});CFG[m].emailTemplates.recusado=Object.assign({},MAIL_PADRAO.recusado,CFG[m].emailTemplates.recusado||{});}
-const salvarCfg=()=>{try{localStorage.setItem("sdcv_cfg",JSON.stringify(CFG))}catch(e){}agendarEst()};
+const salvarCfg=()=>{try{localStorage.setItem("sdcv_cfg",JSON.stringify(CFG))}catch(e){}agendarEst();marcarUndo()};
 (()=>{const C=CFG.FECEG,f=k=>k.replace(/^(\d{2}\/\d{2}\/)(\d{2})_/,(m,a,b)=>a+"20"+b+"_");C.off=(C.off||[]).map(f);const c={};Object.entries(C.capSlot||{}).forEach(([k,v])=>c[f(k)]=v);C.capSlot=c;if(!Array.isArray(C.cat))C.cat=[];if(!Array.isArray(C.extra))C.extra=[];if(C.onlineOn===undefined)C.onlineOn=true})();
 const LIMITES={SEMCITEC:120,FECEG:216},ABA_FILA="Fila de espera";
 const DIAS=["Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado","Domingo"];
@@ -729,17 +729,17 @@ async function atualizarRec(){const lr=$("lr").value.trim();if(modo!=="SEMCITEC"
  if(primeira&&recC.l===lr)return false;recC={l:lr,m:mapaRec(parseCsv(t))};agendarCalc();return"recomendações"}
 let recC={l:"",m:{}},calcT=null,calcN=0;
 const agendarCalc=()=>{clearTimeout(calcT);calcT=setTimeout(calcular,350)},vazio=m=>{res={};GRD=null;drawG();drawQ();drawV();drawN();$("out").innerHTML=`<p class="mut">${m}</p>`};
-async function calcular(){const n=++calcN;try{
+async function calcular(){const n=++calcN,m0=modo;try{
  if(!PROJ_OK||!P.length)return vazio("Aguardando os projetos carregarem...");
  const{sel,fila}=calcSel(),S=modo==="SEMCITEC",pre=S?P.filter(p=>etapaDe(p.situacao)===1).sort(cmpId):[];
  if(!sel.length&&!pre.length)return vazio(S?"Nenhum projeto Aprovado (dentro do limite de "+limAtual()+") nem em Avaliação.":"Nenhum projeto dentro do limite de "+limAtual()+".");
  const lr=$("lr").value.trim();let rec={};if(S&&lr){if(recC.l!==lr)recC={l:lr,m:mapaRec(await lerCsv(lr))};rec=recC.m}
- if(n!==calcN)return;
+ if(n!==calcN||m0!==modo)return;
  const nr={};if(sel.length)nr["Relatório de Inscrições SDC"]=relatorio(sel,rec);let d=null;
  if(A.length){d=S?semcitec(sel,A,pre):feceg(sel,A,+$("pa").value||5);if(fila.length)d.avisos.unshift(`${fila.length} projeto(s) excedente(s) do limite de ${limAtual()} ficaram na fila de espera e não entram nos arquivos.`);if(NG)d.avisos.push(`${NG} grupo(s) de cadastros repetidos: revise na aba Duplicados.`);nr["Distribuição "+modo]=d.w}
- res=nr;GRD=d&&d.g?d:null;const refaz=fixarBase(new Set(sel.map(p=>String(p.id))));render(d);drawG();drawQ();drawV();drawN();if(refaz)agendarCalc()}catch(e){if(n===calcN){res={};$("out").innerHTML=`<div class="av">Erro ao calcular: ${esc(e.message)}</div>`}}}
+ if(m0!==modo||DONO!==modo)return;res=nr;GRD=d&&d.g?d:null;const refaz=fixarBase(new Set(sel.map(p=>String(p.id))));render(d);drawG();drawQ();drawV();drawN();if(refaz)agendarCalc()}catch(e){if(n===calcN){res={};$("out").innerHTML=`<div class="av">Erro ao calcular: ${esc(e.message)}</div>`}}}
 function carregar(){const l={...LINKS_SALVOS[modo]},fixo=!!LINKS_SALVOS[modo].la;try{const sv=JSON.parse(localStorage.getItem("sdcv_"+modo))||{};if(fixo)delete sv.la;Object.assign(l,sv)}catch(e){}$("la").value=l.la||"";$("lr").value=l.lr||"";$("la").readOnly=fixo;$("laN").textContent=fixo?"Planilha fixa dos avaliadores deste núcleo (não editável). Para usar outra, carregue um arquivo abaixo.":""}
-function setModo(m){if(estPend)enviarEst();modo=m;montarKW();drawInstExtra();PROJ_OK=false;REMP.clear();REMA.clear();AVSRC="link";normalizarTemplates();clearTimeout(filaT);P=[];O=[];FILA=[];SELP=[];$("lim").value=typeof CFG[m].limite==="number"&&CFG[m].limite>=0?CFG[m].limite:LIMITES[m];$("limSt").textContent="";$("qf").value=$("qs").value="";$("mS").className=m==="SEMCITEC"?"on":"";$("mF").className=m==="FECEG"?"on":"";$("bR").className=m==="SEMCITEC"?"":"hid";$("bF").className=m==="FECEG"?"":"hid";$("tQ").hidden=m!=="SEMCITEC";$("tV").hidden=m!=="FECEG";$("tN").hidden=m!=="FECEG";
+function setModo(m){if(estPend)enviarEst();clearTimeout(calcT);calcN++;sq.p++;sq.a++;GRD=null;DONO=null;OVRDONO=null;GRADE_STATE={locked:false,lockedAt:"",version:0,priority:{},rooms:{},snapshotMan:{},base:null,baseRooms:null,baseAt:""};MANV={};OVR={};PRF={};HCOLS=[];OPC=[];modo=m;montarKW();drawInstExtra();PROJ_OK=false;REMP.clear();REMA.clear();AVSRC="link";normalizarTemplates();clearTimeout(filaT);P=[];O=[];FILA=[];SELP=[];$("lim").value=typeof CFG[m].limite==="number"&&CFG[m].limite>=0?CFG[m].limite:LIMITES[m];$("limSt").textContent="";$("qf").value=$("qs").value="";$("mS").className=m==="SEMCITEC"?"on":"";$("mF").className=m==="FECEG"?"on":"";$("bR").className=m==="SEMCITEC"?"":"hid";$("bF").className=m==="FECEG"?"":"hid";$("tQ").hidden=m!=="SEMCITEC";$("tV").hidden=m!=="FECEG";$("tN").hidden=m!=="FECEG";
  $("out").innerHTML="";res={};A=[];$("bY").className=syncOn()?"":"hid";$("bYA").className=syncAv()?"":"hid";sav(syncAv()?"Gravação na planilha de avaliadores ativa.":"","ok");ss(syncOn()?"Sincronização com a planilha oficial ativa.":"","ok");$("qp").value=$("qa").value=$("qx").value="";F.p={};F.x={};F.a={};F.d={};dupVisto=0;drawCfg();carMan();carPre();GRD=null;drawV();aba("P");draw("a");carregar();lerProj();lerEmailStatus();if($("la").value.trim())lerAval()}
 $("bre").onclick=()=>{enviar();agendarFila()};$("tF").onclick=()=>aba("F");$("tS").onclick=()=>aba("S");$("qs").oninput=drawSel;$("qf").oninput=drawFila;$("sy").onchange=agendarFila;$("mS").onclick=()=>setModo("SEMCITEC");$("mF").onclick=()=>setModo("FECEG");$("bg").onclick=()=>Object.entries(res).forEach(([n,sh],i)=>setTimeout(()=>baixar(n,sh),i*500));$("bl").onclick=lerProj;$("bca").onclick=lerAval;
 $("fa").onchange=async e=>{const f=e.target.files[0];if(!f)return;const n=++sq.a;st("Lendo arquivo...");
@@ -755,7 +755,7 @@ $("gd").addEventListener("focusout",e=>{const td=e.target.closest&&e.target.clos
 $("gd").addEventListener("change",e=>{const s=e.target.closest&&e.target.closest("select.sit");if(!s)return;const x=DUP[+s.closest("tr").dataset.d];if(!x||x.t!=="p")return;const i=P.indexOf(x.r);if(i>=0)mudarEtapa("p",i,s.value)});
 $("gd").addEventListener("input",e=>{const c=e.target.closest&&e.target.closest(".cf");if(!c)return;F.d[c.dataset.j]=c.value;aplicarDup()});
 $("bs").onclick=()=>{try{localStorage.setItem("sdcv_"+modo,JSON.stringify({la:$("la").value.trim(),lr:$("lr").value.trim()}));st("Links salvos neste navegador.","ok")}catch(e){st("Não foi possível salvar neste navegador.","er")}};
-$("lim").oninput=()=>{refInst();salvarLim()};
+$("lim").oninput=()=>{refInst();if(!MODO_SEG)salvarLim()};$("lim").onchange=()=>{if(MODO_SEG)salvarLim()};
 // ===== Instituições novas, limite salvo e classificação =====
 function niMsg(t,c){const e=$("niSt");e.textContent=t;e.style.color=c==="er"?"var(--er)":c==="ok"?"var(--ok)":""}
 function drawInstExtra(){const l=Object.entries(instExtraAtual());$("niLista").innerHTML=l.length?'<div class="mut" style="margin:8px 0 0">Cadastradas por você neste núcleo:</div>'+l.map(([n,ks])=>`<span class="niTag">${esc(n)}${ks.length?` <span class="mut">(${esc(ks.join(", "))})</span>`:""}<button class="nvi" data-nirm="${esc(n)}" title="Remover">✕</button></span>`).join(""):""}
@@ -764,7 +764,7 @@ function reclassInst(){let n=0;
  for(const p of [...P,...O]){const a=rm(p.inst);if(a!==p.inst){p.inst=a;n++}if(p.insts instanceof Set)for(const v of [...p.insts]){const r=rm(v);if(r!==v){p.insts.delete(v);p.insts.add(r)}}}
  let ovr=false;
  for(const a of A){const v=a.inst,r=rm(v);if(r!==v){const k=a.k0;a.inst=r;if(a.o0&&a.o0.inst===v)a.o0.inst=r;if(k){const nk=a.n0+"|"+r;if(OVR[k]){OVR[nk]=Object.assign(OVR[k],{inst:r});delete OVR[k];ovr=true}a.k0=nk}n++}}
- if(ovr){try{localStorage.setItem(ovrK(),JSON.stringify(OVR))}catch(e){}}
+ if(ovr&&OVRDONO===modo){try{localStorage.setItem(ovrK(),JSON.stringify(OVR))}catch(e){}}
  if(n){draw("p");draw("x");draw("a");refDup();refInst()}return n}
 function addInst(nome,kws){nome=String(nome||"").trim().replace(/^Outros\//i,"").replace(/\s+/g," ");
  if(nome.length<3){niMsg("Informe o nome da instituição (mínimo 3 letras).","er");return false}
@@ -777,7 +777,7 @@ function rmInst(n){const C=CFG[modo];if(C.instExtra)delete C.instExtra[n];salvar
 $("niAdd").onclick=()=>{if(addInst($("niNome").value,$("niKw").value.split(/[,;\n]/))){$("niNome").value="";$("niKw").value=""}};
 $("sI").addEventListener("click",e=>{const c=e.target.closest("[data-nicad]");if(c){$("niNome").value=c.dataset.nicad.replace(/^Outros\//,"");$("niKw").value="";$("niNome").focus();$("niNome").scrollIntoView({behavior:"smooth",block:"center"});niMsg('Confira o nome e clique em "Adicionar instituição".',"");return}const r=e.target.closest("[data-nirm]");if(r)rmInst(r.dataset.nirm)});
 let limT=null;
-function salvarLim(){clearTimeout(limT);limT=setTimeout(()=>{const v=limAtual();if(CFG[modo].limite===v)return;CFG[modo].limite=v;salvarCfg();$("limSt").textContent=` ✔ Limite ${v} salvo (${syncAv()?"planilha de avaliadores":"só neste navegador"}) às ${horaAgora()}`+(syncOn()&&$("sy").checked?"; fila de espera segue para a planilha oficial":"")},600)}
+function salvarLim(){clearTimeout(limT);limT=setTimeout(()=>{const v=limAtual();if(CFG[modo].limite===v)return;if(!seguro("Alterar o limite de projetos para "+v+"? Os excedentes vão para a fila de espera e saem dos arquivos.",()=>{const a=CFG[modo].limite;$("lim").value=typeof a==="number"&&a>=0?a:LIMITES[modo];refInst();agendarCalc()}))return;CFG[modo].limite=v;salvarCfg();$("limSt").textContent=` ✔ Limite ${v} salvo (${syncAv()?"planilha de avaliadores":"só neste navegador"}) às ${horaAgora()}`+(syncOn()&&$("sy").checked?"; fila de espera segue para a planilha oficial":"")},600)}
 function aposCfgPlanilha(c){if(JSON.stringify(instExtraAtual())!==INST_SIG){montarKW();reclassInst();drawInstExtra()}
  const C=CFG[modo],v=C.limite;if(typeof v==="number"&&document.activeElement!==$("lim")&&parseInt($("lim").value)!==v){$("lim").value=v;refInst()}
  if((C.limite!==undefined&&c.limite===undefined)||(C.instExtra&&Object.keys(C.instExtra).length&&c.instExtra===undefined))agendarEst()}
@@ -792,11 +792,11 @@ function listaH(){const o=new Map();
 function drawH(){const L=listaH(),C=CFG[modo],S=modo==="SEMCITEC";
  $("nh").textContent=`(${L.filter(v=>!C.off.includes(v.key)).length} ativos de ${L.length})`;
  $("gh").innerHTML=L.length?`<table><tr><th>Ativo</th><th>${S?"Data · horário · dia":"Turno"}</th><th>Avaliadores</th><th>Projetos por ${S?"sala":"turno"}</th></tr>`+L.map(v=>`<tr><td><input type="checkbox" data-hk="${esc(v.key)}"${C.off.includes(v.key)?"":" checked"} style="width:auto" aria-label="Ativo"></td><td>${esc(v.txt)}</td><td>${v.n}</td><td><input type="number" min="0" data-ck="${esc(v.key)}" value="${C.capSlot[v.key]??(S?slotCap(v.x):C.porTurno)}" style="width:90px"></td></tr>`).join("")+"</table>":'<p style="padding:10px;color:var(--mut)">Nenhum horário encontrado: carregue os avaliadores ou adicione um horário.</p>'}
-$("gh").addEventListener("change",e=>{const t=e.target,C=CFG[modo];
+$("gh").addEventListener("change",e=>{const t=e.target,C=CFG[modo];if(!seguro(t.dataset.hk!=null?(t.checked?"Reativar este horário? A distribuição será recalculada.":"Desativar este horário? Os projetos e avaliadores dele serão redistribuídos."):"Alterar a capacidade deste horário? A distribuição será recalculada.",drawH))return;
  if(t.dataset.hk!=null){const i=C.off.indexOf(t.dataset.hk);if(t.checked&&i>=0)C.off.splice(i,1);if(!t.checked&&i<0)C.off.push(t.dataset.hk)}
  else if(t.dataset.ck!=null){if(t.value==="")delete C.capSlot[t.dataset.ck];else C.capSlot[t.dataset.ck]=Math.max(0,+t.value)}else return;
  salvarCfg();drawH();agendarCalc()});
-$("hadd").onclick=()=>{const d=$("hd").value,a=$("h1").value,b=$("h2").value;if(!d||!a||!b)return st("Informe data, início e fim do horário.","er");
+$("hadd").onclick=()=>{const d=$("hd").value,a=$("h1").value,b=$("h2").value;if(!d||!a||!b)return st("Informe data, início e fim do horário.","er");if($("hall").checked&&!seguro("Adicionar este horário a TODOS os avaliadores e gravar na planilha dos avaliadores?"))return;
  const[y,m,dd]=d.split("-"),tx=modo==="SEMCITEC"?`${dd}/${m}/${y} ${a}-${b}`:`${dd}/${m}/${y.slice(2)} ${hF(a)} às ${hF(b)}`;
  const todos=$("hall").checked;if(todos){CFG[modo].extra.push(tx);extraA(tx)}else CFG[modo].cat.push(tx);salvarCfg();draw("a");st(todos?"Horário adicionado a todos os avaliadores aprovados.":"Horário adicionado às opções: marque-o em cada avaliador.","ok")};
 function normalizarTemplates(){for(const m of Object.keys(CFG)){CFG[m].emailTemplates=CFG[m].emailTemplates||JSON.parse(JSON.stringify(MAIL_PADRAO));CFG[m].emailTemplates.ok=Object.assign({},MAIL_PADRAO.ok,CFG[m].emailTemplates.ok||{});CFG[m].emailTemplates.recusado=Object.assign({},MAIL_PADRAO.recusado,CFG[m].emailTemplates.recusado||{});}}
@@ -825,19 +825,21 @@ const CF={SEMCITEC:[["porAval","Projetos por avaliador (pré-avaliação)"],["av
 function drawCfg(){const C=CFG[modo],S=modo==="SEMCITEC";normalizarTemplates();
  $("cfgBody").innerHTML=`<label>Link da planilha de projetos<input data-lp type="text" value="${esc(LINKS_SALVOS[modo].lp)}"></label><div class="g2">`+CF[modo].map(([k,n,t])=>`<label>${n}<input data-cf="${k}" type="${t||"number"}" min="0" value="${esc(C[k])}"></label>`).join("")+"</div>"+
  (S?`<label>Salas (separadas por vírgula; a última recebe os Relatos)<input data-cf="salas" type="text" value="${esc(C.salas.join(", "))}"></label><label>Projetos por sala em cada dia da semana (por horário, ajuste na aba Horários)</label><div class="g2">${DIAS.map((d,i)=>`<label class="mut" style="font-weight:400">${d}<input data-cd="${i}" type="number" min="0" value="${C.cap[i]}"></label>`).join("")}</div>`:"")+(!S?`<div class="fld" style="margin:12px 0"><b>Avaliação online</b> <span class="mut">${C.onlineOn===false?"desativada: não aparece na grade nem nos arquivos.":"ativada: aparece como coluna Online na grade."}</span><div class="row" style="margin:8px 0 0"><button data-onl="1"${C.onlineOn===false?' class="p"':""}>${C.onlineOn===false?"Ativar":"Desativar"} avaliação online</button></div></div>`:"");if(!S&&document.activeElement!==$("pa"))$("pa").value=CFG.FECEG.porAval||5;drawMailTemplates()}
-$("cfgBody").addEventListener("change",e=>{const t=e.target,C=CFG[modo];
+$("cfgBody").addEventListener("change",e=>{const t=e.target,C=CFG[modo];if(!seguro("Alterar esta configuração? A distribuição será recalculada.",drawCfg))return;
  if(t.dataset.lp!=null){LINKS_SALVOS[modo].lp=t.value.trim();try{localStorage.setItem("sdcv_lp_"+modo,t.value.trim())}catch(x){}agendarEst();return void lerProj()}
  if(t.dataset.cf){const k=t.dataset.cf;C[k]=k==="salas"?t.value.split(",").map(x=>x.trim()).filter(Boolean):k==="dataOnline"?t.value.trim():Math.max(0,+t.value);if(k==="salas"&&!C.salas.length)C.salas=["Sala 1"]}
  else if(t.dataset.cd!=null)C.cap[+t.dataset.cd]=Math.max(0,+t.value);else return;
  salvarCfg();drawCfg();drawH();agendarCalc()});
-$("cfgBody").addEventListener("click",e=>{if(!e.target.closest("[data-onl]"))return;const C=CFG.FECEG;C.onlineOn=C.onlineOn===false;salvarCfg();drawCfg();agendarCalc();st(C.onlineOn?"Avaliação online ativada.":"Avaliação online desativada: removida da grade e dos arquivos.","ok")});
-["I","H","G","Q","V","N","R","C"].forEach(k=>$("t"+k).onclick=()=>aba(k));$("lr").onchange=agendarCalc;$("pa").onchange=()=>{const v=Math.min(20,Math.max(1,Math.round(+$("pa").value)||5));$("pa").value=v;CFG.FECEG.porAval=v;salvarCfg();agendarCalc()};
+$("cfgBody").addEventListener("click",e=>{if(!e.target.closest("[data-onl]"))return;if(!seguro("Ativar/desativar a avaliação online? Isso muda a grade e os arquivos."))return;const C=CFG.FECEG;C.onlineOn=C.onlineOn===false;salvarCfg();drawCfg();agendarCalc();st(C.onlineOn?"Avaliação online ativada.":"Avaliação online desativada: removida da grade e dos arquivos.","ok")});
+["I","H","G","Q","V","N","R","C"].forEach(k=>$("t"+k).onclick=()=>aba(k));$("lr").onchange=agendarCalc;$("pa").onchange=()=>{if(!seguro("Alterar o máximo de projetos por avaliador? A distribuição será recalculada.",()=>{$("pa").value=CFG.FECEG.porAval||5}))return;const v=Math.min(20,Math.max(1,Math.round(+$("pa").value)||5));$("pa").value=v;CFG.FECEG.porAval=v;salvarCfg();agendarCalc()};
 // ===== SELETOR DE HORÁRIOS, GRADE E AJUSTES (salvos no navegador) =====
 let OPC=[],OVR={},MANV={},GRD=null,GRP=new Map(),DEST=[];
+// DONO = núcleo (SEMCITEC/FECEG) dono de GRADE_STATE/MANV/PRF na memória; OVRDONO = idem para OVR. Só grava/envia quando é o núcleo ativo, para um núcleo nunca gravar por cima do outro.
+let DONO=null,OVRDONO=null;
 let GRADE_STATE={locked:false,lockedAt:"",version:0,priority:{},rooms:{},snapshotMan:{},base:null,baseRooms:null,baseAt:""};
 const ovrK=()=>"sdcv_ovr_"+modo,manK=()=>"sdcv_man_"+modo,gradeK=()=>"sdcv_grade_"+modo,MANP=new Proxy({},{get:(t,k)=>MANV[k]!==undefined?MANV[k]:(GRADE_STATE.base||{})[k]}),MAN=()=>GRADE_STATE.base?MANP:MANV;
 function carregarGradeState(){try{const x=JSON.parse(localStorage.getItem(gradeK()))||{};GRADE_STATE=Object.assign({locked:false,lockedAt:"",version:0,priority:{},rooms:{},snapshotMan:{},base:null,baseRooms:null,baseAt:""},x)}catch(e){GRADE_STATE={locked:false,lockedAt:"",version:0,priority:{},rooms:{},snapshotMan:{},base:null,baseRooms:null,baseAt:""}}}
-function salvarGradeState(){try{localStorage.setItem(gradeK(),JSON.stringify(GRADE_STATE))}catch(e){}agendarEst()}
+function salvarGradeState(){if(DONO!==modo)return;try{localStorage.setItem(gradeK(),JSON.stringify(GRADE_STATE))}catch(e){}agendarEst();marcarUndo()}
 function prioridadeInst(inst){return modo==="FECEG"?Math.max(0,+((GRADE_STATE.priority||{})[inst]||0)):0}
 function chaveAval(a){return a?a.nome+"|"+a.inst:""}
 function aplicarPrioridadePool(L){return [...L].sort((a,b)=>(MAN()[a.id]&&MAN()[a.id].l?0:1)-(MAN()[b.id]&&MAN()[b.id].l?0:1)||prioridadeInst(b.inst)-prioridadeInst(a.inst)||cmpId(a,b))}
@@ -847,7 +849,7 @@ function atualizarControlesGrade(){const lock=!!GRADE_STATE.locked;const gb=$("g
 // Depois que a grade é gerada pela primeira vez, cada projeto (e, na SEMCITEC, os avaliadores de cada sala) fica gravado em GRADE_STATE.base.
 // Os recálculos (a cada 10 s, ao recarregar planilhas etc.) respeitam essa base: só projetos NOVOS entram (e também ficam fixos).
 // "Travar" continua existindo para impedir qualquer alteração manual; "Refazer distribuição" descarta a base e gera de novo.
-function fixarBase(elegiveis){if(!GRD||!GRD.g)return false;
+function fixarBase(elegiveis){if(!GRD||!GRD.g||DONO!==modo)return false;
  const B=GRADE_STATE.base=GRADE_STATE.base||{},vivo=new Set();let ch=false,precisa=false;
  if(GRD.g.f){GRD.g.cols.forEach(c=>c.pr.forEach(p=>{vivo.add(String(p.id));if(!B[p.id]){B[p.id]={l:c.k,a:(p.avals||[]).map(chaveAval)};ch=true}}))}
  else if(Array.isArray(GRD.g)){const R=GRADE_STATE.baseRooms=GRADE_STATE.baseRooms||{};
@@ -860,7 +862,7 @@ function fixarBase(elegiveis){if(!GRD||!GRD.g)return false;
 function refazerBase(){if(GRADE_STATE.locked)return st("A grade está travada. Destrave antes de refazer a distribuição.","er");
  if(!confirm("Refazer a distribuição do zero? A grade fixa atual será descartada e uma nova será gerada e fixada (ajustes manuais são mantidos)."))return;
  GRADE_STATE.base=null;GRADE_STATE.baseRooms=null;GRADE_STATE.baseAt="";salvarGradeState();agendarCalc();st("Distribuição refeita: a nova grade foi gerada e já fica fixa.","ok")}
-function capturarTrava(){if(!GRD)return false;const old=JSON.parse(JSON.stringify(MANV||{}));const snap={};
+function capturarTrava(){if(!GRD||DONO!==modo)return false;const old=JSON.parse(JSON.stringify(MANV||{}));const snap={};
  if(GRD.g&&GRD.g.f){GRD.g.cols.forEach(c=>c.pr.forEach(p=>{snap[p.id]={l:c.k,a:(p.avals||[]).map(chaveAval)}}))}
  else if(Array.isArray(GRD.g)){GRD.g.forEach(c=>c.salas.forEach(r=>{const rk=c.x.label+"\t"+r.s;r.av.forEach(a=>{(GRADE_STATE.rooms[rk]||(GRADE_STATE.rooms[rk]=[])).push(chaveAval(a))});r.pr.forEach(p=>{snap[p.id]={l:c.x.label,s:r.s}})}))}
  GRADE_STATE.snapshotMan=old;GRADE_STATE.rooms={};
@@ -869,10 +871,10 @@ function capturarTrava(){if(!GRD)return false;const old=JSON.parse(JSON.stringif
  GRADE_STATE.locked=true;GRADE_STATE.lockedAt=agora();GRADE_STATE.version=(GRADE_STATE.version||0)+1;salvarGradeState();try{localStorage.setItem(manK(),JSON.stringify(MANV))}catch(e){};return true}
 function destravarGrade(){if(!GRADE_STATE.locked)return;if(!confirm("Destravar a grade presencial? Os ajustes manuais feitos antes da trava serão restaurados. A grade continua fixa como foi gerada; use 'Refazer distribuição' se quiser gerar de novo."))return;MANV=GRADE_STATE.snapshotMan||{};GRADE_STATE.locked=false;GRADE_STATE.lockedAt="";GRADE_STATE.rooms={};GRADE_STATE.snapshotMan={};salvarGradeState();try{localStorage.setItem(manK(),JSON.stringify(MANV))}catch(e){}agendarCalc();st("Grade presencial destravada. A grade continua fixa; só mudará com ajustes manuais ou 'Refazer distribuição'.","ok")}
 
-const salvarMan=()=>{try{localStorage.setItem(manK(),JSON.stringify(MANV))}catch(e){}agendarEst()};
-function carMan(){try{MANV=JSON.parse(localStorage.getItem(manK()))||{}}catch(e){MANV={}}carregarGradeState()}
-function aplicarOvr(){try{OVR=JSON.parse(localStorage.getItem(ovrK()))||{}}catch(e){OVR={}}A.forEach(a=>{a.k0=a.nome+"|"+a.inst;a.n0=a.nome;a.e0=a.email;a.o0={nome:a.nome,inst:a.inst,email:a.email,areas:a.areas};if(OVR[a.k0])Object.assign(a,OVR[a.k0])})}
-function salvarOvr(a){if(!a.k0)return;OVR[a.k0]={disp:a.disp,aprov:a.aprov,pre:a.pre,areas:a.areas,email:a.email,nome:a.nome,inst:a.inst};try{localStorage.setItem(ovrK(),JSON.stringify(OVR))}catch(e){}agendarAv(a)}
+const salvarMan=()=>{if(DONO!==modo)return;try{localStorage.setItem(manK(),JSON.stringify(MANV))}catch(e){}agendarEst();marcarUndo()};
+function carMan(){try{MANV=JSON.parse(localStorage.getItem(manK()))||{}}catch(e){MANV={}}carregarGradeState();DONO=modo;baseUndo()}
+function aplicarOvr(){try{OVR=JSON.parse(localStorage.getItem(ovrK()))||{}}catch(e){OVR={}}OVRDONO=modo;A.forEach(a=>{a.k0=a.nome+"|"+a.inst;a.n0=a.nome;a.e0=a.email;a.o0={nome:a.nome,inst:a.inst,email:a.email,areas:a.areas};if(OVR[a.k0])Object.assign(a,OVR[a.k0])})}
+function salvarOvr(a){if(!a.k0||OVRDONO!==modo)return;OVR[a.k0]={disp:a.disp,aprov:a.aprov,pre:a.pre,areas:a.areas,email:a.email,nome:a.nome,inst:a.inst};try{localStorage.setItem(ovrK(),JSON.stringify(OVR))}catch(e){}agendarAv(a)}
 function opcoesH(){const S=modo==="SEMCITEC",m=new Map(),add=tx=>slotsAv(tx).forEach(x=>{if(!m.has(x.label))m.set(x.label,{x,tx:S?(x.data?x.data+(x.hora?" "+x.hora:""):x.wd):x.tx})});if(!S)m.set("Online",{x:{label:"Online",online:true,ord:"0"},tx:"Online"});A.forEach(a=>add(a.disp));(CFG[modo].cat||[]).concat(CFG[modo].extra||[]).forEach(add);return[...m.values()].sort((a,b)=>a.x.ord<b.x.ord?-1:a.x.ord>b.x.ord?1:0)}
 const slotsAv=t=>modo==="SEMCITEC"?parseSlots(t):parseTurnos(t),resumoH=s=>s.size+" horário(s)"+(modo==="FECEG"&&s.has("Online")?" · online":""),rotH=x=>modo==="FECEG"?x.label+(x.hora?" · "+x.hora:""):(x.data?`${x.data} ${x.hora} · ${x.wd.slice(0,3)}`:x.wd),hF=t=>{const[h,mi]=String(t).split(":");return+mi?`${h}h${mi}`:`${h}hs`};
 function pickH(a){const sel=new Set(slotsAv(a.disp).map(x=>x.label));
@@ -880,9 +882,9 @@ function pickH(a){const sel=new Set(slotsAv(a.disp).map(x=>x.label));
 $("ga").addEventListener("change",e=>{const c=e.target.closest&&e.target.closest("input[data-hp]");if(!c)return;const tr=c.closest("tr"),a=A[+tr.dataset.i];if(!a)return;
  const set=new Set(slotsAv(a.disp).map(x=>x.label));c.checked?set.add(c.dataset.hp):set.delete(c.dataset.hp);
  a.disp=OPC.filter(o=>set.has(o.x.label)).map(o=>o.tx).join(" | ");tr.querySelector(".hsel summary").textContent=resumoH(set);salvarOvr(a);refDup()});
-$("bro").onclick=()=>{try{localStorage.removeItem(ovrK())}catch(e){}OVR={};if($("la").value.trim())lerAval();else st("Recarregue o arquivo de avaliadores.","")};
+$("bro").onclick=()=>{if(!seguro("Descartar as edições locais de avaliadores e recarregar da planilha?"))return;try{localStorage.removeItem(ovrK())}catch(e){}OVR={};if($("la").value.trim())lerAval();else st("Recarregue o arquivo de avaliadores.","")};
 function drawPrioridades(){if(modo!=="FECEG"){$("prioBox").hidden=true;return}const inst=[...new Set(P.map(p=>p.inst))].sort((a,b)=>a.localeCompare(b,"pt-BR"));const pr=GRADE_STATE.priority||{};$("prioBox").hidden=!!GRADE_STATE.locked;$("prioG").innerHTML=inst.length?`<table><tr><th>Instituição</th><th>Prioridade</th><th>Projetos</th></tr>${inst.map(i=>`<tr><td>${esc(i)}</td><td><input type="number" min="0" max="99" step="1" data-prio="${esc(i)}" value="${Math.max(0,+(pr[i]||0))}" style="width:90px"></td><td>${P.filter(p=>p.inst===i).length}</td></tr>`).join("")}</table>`:'<p class="mut">Nenhuma instituição encontrada.</p>'}
-$("prioG").addEventListener("change",e=>{const t=e.target.closest("[data-prio]");if(!t||GRADE_STATE.locked)return;GRADE_STATE.priority=GRADE_STATE.priority||{};const v=Math.max(0,Math.min(99,+t.value||0));if(v)GRADE_STATE.priority[t.dataset.prio]=v;else delete GRADE_STATE.priority[t.dataset.prio];salvarGradeState();agendarCalc();st("Prioridade por instituição atualizada.","ok")});
+$("prioG").addEventListener("change",e=>{const t=e.target.closest("[data-prio]");if(!t||GRADE_STATE.locked)return;if(!seguro("Alterar a prioridade desta instituição? A distribuição será recalculada.",drawPrioridades))return;GRADE_STATE.priority=GRADE_STATE.priority||{};const v=Math.max(0,Math.min(99,+t.value||0));if(v)GRADE_STATE.priority[t.dataset.prio]=v;else delete GRADE_STATE.priority[t.dataset.prio];salvarGradeState();agendarCalc();st("Prioridade por instituição atualizada.","ok")});
 function drawG(){const el=$("gg");drawPrioridades();atualizarControlesGrade();
  if(!GRD){$("mvbar").hidden=true;$("gctrl").hidden=true;$("prioBox").hidden=true;el.innerHTML=`<p class="mut" style="padding:8px">Sem dados para montar a grade ainda (carregue os projetos e os avaliadores).</p>`;return}
  $("mvbar").hidden=false;$("mvbar").querySelectorAll("input,select,button").forEach(x=>x.disabled=GRADE_STATE.locked);if(GRD.g.f)return drawGF();const G=GRD.g,nd=GRD.nd,dv=$("mvd").value;GRP=new Map();DEST=[];
@@ -923,22 +925,22 @@ const _drawG0=drawG;drawG=function(){_drawG0.apply(this,arguments);drawGradeTab(
 $("avb").onclick=()=>{if(GRADE_STATE.locked)return st("A grade está travada. Destrave para mover avaliadores.","er");
  const o=$("avs").value,d=$("avd").value;if(!o||!d)return st("Escolha o avaliador e o destino (dia e sala).","er");
  if(!destAval(o,true).some(z=>z.v===d))return st("Destino não permitido: o avaliador só pode ir para outra sala do mesmo horário ou para uma data em que tem disponibilidade.","er");
- const[l0,s0,ch]=o.split("\t"),[l1,s1]=d.split("\t"),MV=GRADE_STATE.avMove=GRADE_STATE.avMove||{},SP=GRADE_STATE.avSup=GRADE_STATE.avSup||{},eraSup=!!SP[l0+"\t"+ch];if(l0===l1&&s0===s1&&!eraSup)return st("O avaliador já está nessa sala neste horário. Para deixá-lo como reserva, use 'Tornar suplente'.","er");delete SP[l0+"\t"+ch];delete SP[l1+"\t"+ch];if(l0!==l1)MV[l0+"\t"+ch]="-";MV[l1+"\t"+ch]=s1;
+ if(!seguro("Mover este avaliador de sala/horário na grade?"))return;const[l0,s0,ch]=o.split("\t"),[l1,s1]=d.split("\t"),MV=GRADE_STATE.avMove=GRADE_STATE.avMove||{},SP=GRADE_STATE.avSup=GRADE_STATE.avSup||{},eraSup=!!SP[l0+"\t"+ch];if(l0===l1&&s0===s1&&!eraSup)return st("O avaliador já está nessa sala neste horário. Para deixá-lo como reserva, use 'Tornar suplente'.","er");delete SP[l0+"\t"+ch];delete SP[l1+"\t"+ch];if(l0!==l1)MV[l0+"\t"+ch]="-";MV[l1+"\t"+ch]=s1;
  salvarGradeState();agendarCalc();st("Avaliador movido na grade.","ok")};
 $("avsup").onclick=()=>{if(GRADE_STATE.locked)return st("A grade está travada. Destrave para definir suplentes.","er");
  const o=$("avs").value,d=$("avd").value;if(!o||!d)return st("Escolha o avaliador e a sala onde ele ficará como suplente.","er");
  if(!destAval(o,true).some(z=>z.v===d))return st("Destino não permitido: o avaliador só pode ser suplente em um horário em que tem disponibilidade.","er");
- const[l0,,ch]=o.split("\t"),[l1,s1]=d.split("\t"),MV=GRADE_STATE.avMove=GRADE_STATE.avMove||{},SP=GRADE_STATE.avSup=GRADE_STATE.avSup||{};
+ if(!seguro("Definir este avaliador como suplente?"))return;const[l0,,ch]=o.split("\t"),[l1,s1]=d.split("\t"),MV=GRADE_STATE.avMove=GRADE_STATE.avMove||{},SP=GRADE_STATE.avSup=GRADE_STATE.avSup||{};
  delete SP[l0+"\t"+ch];if(l0!==l1)MV[l0+"\t"+ch]="-";delete MV[l1+"\t"+ch];SP[l1+"\t"+ch]=s1;
  salvarGradeState();agendarCalc();st("Avaliador definido como suplente (não conta nas vagas da sala).","ok")};
-$("parTog").onchange=()=>{CFG.SEMCITEC.parear=$("parTog").checked;salvarCfg();agendarCalc();st($("parTog").checked?"Pareamento por instituição ligado (automático).":"Pareamento desligado: a distribuição automática não forma mais pares; ajuste os avaliadores como preferir.","ok")};
-$("avc").onclick=()=>{if(GRADE_STATE.locked)return st("A grade está travada. Destrave antes de limpar as mudanças.","er");GRADE_STATE.avMove={};GRADE_STATE.avSup={};salvarGradeState();agendarCalc();st("Mudanças manuais de avaliadores removidas.","ok")};
+$("parTog").onchange=()=>{if(!seguro("Alterar o pareamento automático por instituição? Os avaliadores serão redistribuídos.",()=>{$("parTog").checked=CFG.SEMCITEC.parear!==false}))return;CFG.SEMCITEC.parear=$("parTog").checked;salvarCfg();agendarCalc();st($("parTog").checked?"Pareamento por instituição ligado (automático).":"Pareamento desligado: a distribuição automática não forma mais pares; ajuste os avaliadores como preferir.","ok")};
+$("avc").onclick=()=>{if(GRADE_STATE.locked)return st("A grade está travada. Destrave antes de limpar as mudanças.","er");if(!seguro("Remover TODAS as mudanças manuais de avaliadores (movimentos e suplentes)?"))return;GRADE_STATE.avMove={};GRADE_STATE.avSup={};salvarGradeState();agendarCalc();st("Mudanças manuais de avaliadores removidas.","ok")};
 // ----- Configuração: controle de projetos por sala (Relato × Comunicação) -----
 function drawCtlSalas(){const el=$("ctlSalas");if(!el)return;if(modo!=="SEMCITEC"){el.innerHTML="";return}
  const C=CFG.SEMCITEC,LM=C.salaLim||{},op=(v,t,s)=>`<option value="${v}"${sxTipoSala(s)===v?" selected":""}>${t}</option>`,inp=(s,k)=>`<input type="number" min="0" data-sxl="${esc(s)}" data-k="${k}" value="${esc((LM[s]||{})[k]??"")}" placeholder="horário">`;
  el.innerHTML=`<div class="fld" style="margin:12px 0"><b>Controle de projetos por sala</b> <span class="mut">Defina o que cada sala recebe (Relato de Experiência, Comunicação ou ambos) e o limite de cada tipo. Limite em branco = usa o limite do horário.</span><div class="sx-w2" style="margin-top:8px"><table class="sx-t"><thead><tr><th>Sala</th><th>Projetos aceitos</th><th>Máx. Relatos</th><th>Máx. Comunicação</th></tr></thead><tbody>${C.salas.map(s=>`<tr><td><b>${esc(s)}</b></td><td><select data-sxt="${esc(s)}">${op("com","Comunicação",s)}${op("rel","Relato de Experiência",s)}${op("ambos","Relato + Comunicação",s)}</select></td><td>${inp(s,"rel")}</td><td>${inp(s,"com")}</td></tr>`).join("")}</tbody></table></div><label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;font-weight:400"><input type="checkbox" data-sxr style="width:auto"${C.relLiberaCom!==false?" checked":""}> Se os Relatos já estiverem todos alocados em dias anteriores, a sala de Relatos aceita projetos de Comunicação</label><div class="mut">Segunda-feira continua usando só a Sala 1, com o limite de relatos definido acima.</div></div>`}
 const _drawCfg0=drawCfg;drawCfg=function(){_drawCfg0.apply(this,arguments);drawCtlSalas()};drawCtlSalas();
-$("ctlSalas").addEventListener("change",e=>{const t=e.target,C=CFG.SEMCITEC;
+$("ctlSalas").addEventListener("change",e=>{const t=e.target,C=CFG.SEMCITEC;if(!seguro("Alterar as regras de salas? A distribuição será recalculada.",drawCfg))return;
  if(t.dataset.sxt!=null)(C.salaTipo=C.salaTipo||{})[t.dataset.sxt]=t.value;
  else if(t.dataset.sxl!=null){const L=(C.salaLim=C.salaLim||{}),s=t.dataset.sxl,k=t.dataset.k;L[s]=L[s]||{};if(t.value.trim()==="")delete L[s][k];else L[s][k]=Math.max(0,Math.round(+t.value)||0)}
  else if(t.dataset.sxr!=null)C.relLiberaCom=t.checked;else return;
@@ -947,13 +949,13 @@ $("gg").addEventListener("click",e=>{const em=e.target.closest("[data-emailhor]"
 $("gg").addEventListener("click",e=>{const c=e.target.closest("[data-avk]");if(!c)return;const k=c.dataset.avl+"\t"+c.dataset.avk,M=GRADE_STATE.avConf=GRADE_STATE.avConf||{};if(M[k])delete M[k];else M[k]=1;const on=!!M[k];
  document.querySelectorAll("#gg [data-avk]").forEach(z=>{if(z.dataset.avl===c.dataset.avl&&z.dataset.avk===c.dataset.avk){z.classList.toggle("ok",on);z.setAttribute("aria-pressed",on);z.title=on?"Confirmado — clique para desmarcar":"Não confirmado — clique para confirmar"}});salvarGradeState()});
 $("gg").addEventListener("click",e=>{const b=e.target.closest("[data-pick]");if(!b)return;const p=[...GRP.entries()].find(([,v])=>String(v.id)===b.dataset.pick);if(p){$("mvp").value=p[0];$("mvp").scrollIntoView({block:"nearest"});$("mvd").focus()}});
-$("gLock").onclick=()=>{if(!GRD)return st("A grade ainda não foi calculada.","er");if(capturarTrava()){drawG();agendarCalc();st("Sugestão presencial travada e salva na planilha.","ok")}};
+$("gLock").onclick=()=>{if(!GRD)return st("A grade ainda não foi calculada.","er");if(!seguro("Travar a grade presencial? A trava é salva na planilha e fixa a grade e os avaliadores sugeridos."))return;if(capturarTrava()){drawG();agendarCalc();st("Sugestão presencial travada e salva na planilha.","ok")}};
 $("gUnlock").onclick=destravarGrade;$("gRedo").onclick=refazerBase;
 $("mvb").onclick=()=>{if(GRADE_STATE.locked)return st("A grade está travada. Destrave para fazer alterações.","er");const q=$("mvp").value.trim(),f=fold(q);let p=GRP.get(q);if(!p){const m=[...GRP.values()].filter(v=>String(v.id)===q||(f&&fold(v.titulo).includes(f)));if(m.length===1)p=m[0]}
- if(!p)return st("Projeto não encontrado ou ambíguo: digite o nome/ID e escolha da lista.","er");
+ if(!p)return st("Projeto não encontrado ou ambíguo: digite o nome/ID e escolha da lista.","er");if(!seguro("Alterar o projeto "+p.id+" na grade?"))return;
  const v=$("mvd").value;if(v==="auto"){delete MANV[p.id];if(GRADE_STATE.base)delete GRADE_STATE.base[p.id]}else if(v==="none")MANV[p.id]={l:"",s:""};else{const[l,s]=v.split("\t");MANV[p.id]={l,s}}
  salvarMan();agendarCalc();$("mvp").value="";st(`Projeto ${p.id} atualizado na grade.`,"ok")};
-$("mvc").onclick=()=>{if(GRADE_STATE.locked)return st("A grade está travada. Destrave antes de limpar ajustes.","er");MANV={};salvarMan();agendarCalc();st("Ajustes manuais da grade removidos.","ok")};
+$("mvc").onclick=()=>{if(GRADE_STATE.locked)return st("A grade está travada. Destrave antes de limpar ajustes.","er");if(!seguro("Remover TODOS os ajustes manuais de projetos da grade?"))return;MANV={};salvarMan();agendarCalc();st("Ajustes manuais da grade removidos.","ok")};
 // Redistribuir projetos (SEMCITEC) sem mexer nos avaliadores: só os projetos em conflito de instituição ou sem sala são realocados.
 function projPrecisam(){const out=[];if(!GRD||!Array.isArray(GRD.g))return out;
  GRD.g.forEach(c=>c.salas.forEach(r=>r.pr.forEach(p=>{if(p.conflito)out.push(p)})));
@@ -975,7 +977,7 @@ async function redistribuirProjetos(){if(modo!=="SEMCITEC"||!GRD||!Array.isArray
  if(fix){salvarMan();clearTimeout(calcT);await calcular()}
  const sobra=projPrecisam().length,ok=Math.max(0,need.length-sobra);
  st(`${ok} de ${need.length} projeto(s) redistribuído(s); os avaliadores não foram alterados.`+(sobra?` ${sobra} ainda sem solução (sem sala com vaga e sem conflito de instituição).`:""),sobra?"er":"ok")}
-$("mvr").onclick=redistribuirProjetos;
+$("mvr").onclick=()=>{if(seguro("Redistribuir os projetos em conflito ou sem sala? Ajustes manuais desses projetos serão descartados."))redistribuirProjetos()};
 // ===== GRAVAÇÃO NA PLANILHA DE AVALIADORES (Apps Script: Code_avaliadores.gs) =====
 // Avaliadores, pré-avaliação e configurações usam o script da planilha de avaliadores de cada núcleo.
 const SYNCAV={SEMCITEC:{url:"https://script.google.com/macros/s/AKfycbxvmGuTzHI3AqASCuL82SFAlsi2p9BP4cdLwfxgMB_8T9FgWBzYxhqhwpfo0kfapa3Jzw/exec"},FECEG:{url:"https://script.google.com/macros/s/AKfycbyL5AaUrNkRaROyD7CpsXxpPGMu7X1Ndvbs_0RkpA4w44-FtSz6fuY86Ywj0OjU05nhIA/exec"}}; // script ligado à planilha de avaliadores de cada núcleo
@@ -1010,7 +1012,7 @@ let PRF={},QP=new Map(),preT=null,estT=null;
 const preK=()=>"sdcv_pre_"+modo,agora=()=>new Date().toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"});
 const postAv=(m,o)=>chamar(m,o,true);
 function carPre(){try{PRF=JSON.parse(localStorage.getItem(preK()))||{}}catch(e){PRF={}}if(syncAv()){lerEstSheet();if(modo==="SEMCITEC")lerPreSheet()}}
-const salvarPre=()=>{try{localStorage.setItem(preK(),JSON.stringify(PRF))}catch(e){}if(modo==="SEMCITEC"&&syncAv()){prePend=true;clearTimeout(preT);preT=setTimeout(enviarPre,1000)}};
+const salvarPre=()=>{if(DONO!==modo)return;try{localStorage.setItem(preK(),JSON.stringify(PRF))}catch(e){}if(modo==="SEMCITEC"&&syncAv()){prePend=true;clearTimeout(preT);preT=setTimeout(enviarPre,1000)}};
 async function enviarPre(){try{sav("Gravando a pré-avaliação na planilha...");const j=await postAv("SEMCITEC",{acao:"salvarPre",itens:Object.entries(PRF).map(([id,v])=>({id,...v}))});retOk("pre");prePend=false;sav(`Pré-avaliação gravada na planilha (${j.n} projeto(s) travados).`,"ok")}catch(e){retentar("pre",enviarPre);sav("⚠ Pré-avaliação NÃO gravada na planilha: "+e.message,"er")}}
 async function lerPreSheet(poll){const m=modo;if(poll&&prePend)return false;try{const j=await postAv(m,{acao:"lerPre"});if(m!==modo)return false;
  const sg=hash53(JSON.stringify(j.itens||[])),k="pre|"+m;if(poll&&(SIGS.get(k)===sg||prePend))return false;SIGS.set(k,sg);
@@ -1022,12 +1024,12 @@ async function lerPreSheet(poll){const m=modo;if(poll&&prePend)return false;try{
  catch(e){if(poll)throw e;sav("⚠ Não consegui ler a pré-avaliação da planilha: "+e.message,"er");ES.a=false;indSave()}}
 const estadoLocal=()=>({cfg:CFG[modo],man:MANV,grade:GRADE_STATE,mail:CFG[modo].emailTemplates,links:{lp:LINKS_SALVOS[modo].lp,lr:LINKS_SALVOS[modo].lr}});
 function agendarEst(){if(!syncAv())return;estPend=true;estV++;clearTimeout(estT);estT=setTimeout(enviarEst,espera("e",4000))}
-async function enviarEst(){clearTimeout(estT);delete W.e;const m=modo,v=estV,estado=JSON.parse(JSON.stringify(estadoLocal()));try{await postAv(m,{acao:"salvarEstado",modo:m,estado});retOk("est");if(v===estV)estPend=false;ES.a=false;indSave()}catch(e){retentar("est",enviarEst);sav("⚠ Configurações e ajustes NÃO gravados na planilha: "+e.message,"er")}}
+async function enviarEst(){clearTimeout(estT);delete W.e;if(DONO!==modo){estT=setTimeout(enviarEst,500);return}const m=modo,v=estV,estado=JSON.parse(JSON.stringify(estadoLocal()));try{await postAv(m,{acao:"salvarEstado",modo:m,estado});retOk("est");if(v===estV)estPend=false;ES.a=false;indSave()}catch(e){retentar("est",enviarEst);sav("⚠ Configurações e ajustes NÃO gravados na planilha: "+e.message,"er")}}
 async function lerEstSheet(poll){const m=modo,bloq=()=>estPend||ES.a||MAILPEND||mailEnv||editandoEm("#cfgBody,.mailbox,#gh");try{if(poll&&bloq())return false;const j=await postAv(m,{acao:"lerEstado",modo:m});if(m!==modo)return false;
  const sg=hash53(JSON.stringify(j.estado||null)),k="est|"+m;if(poll){if(SIGS.get(k)===sg||bloq())return false}SIGS.set(k,sg);
  if(!j.estado){agendarEst();return false}
  if(poll&&hash53(JSON.stringify(estadoLocal()))===sg)return false;
- Object.assign(CFG[m],j.estado.cfg||{});if(m===modo)aposCfgPlanilha(j.estado.cfg||{});if(j.estado.mail)CFG[m].emailTemplates=j.estado.mail;if(j.estado.links){if(j.estado.links.lp)LINKS_SALVOS[m].lp=j.estado.links.lp;if(j.estado.links.lr!==undefined)LINKS_SALVOS[m].lr=j.estado.links.lr}MANV=j.estado.man||{};GRADE_STATE=Object.assign({locked:false,lockedAt:"",version:0,priority:{},rooms:{},snapshotMan:{},base:null,baseRooms:null,baseAt:""},j.estado.grade||{});try{localStorage.setItem("sdcv_cfg",JSON.stringify(CFG));localStorage.setItem("sdcv_lp_"+m,LINKS_SALVOS[m].lp||"");localStorage.setItem(manK(),JSON.stringify(MANV));localStorage.setItem(gradeK(),JSON.stringify(GRADE_STATE))}catch(e){}drawCfg();drawH();drawG();agendarCalc();return poll?"configurações":false}
+ Object.assign(CFG[m],j.estado.cfg||{});if(m===modo)aposCfgPlanilha(j.estado.cfg||{});if(j.estado.mail)CFG[m].emailTemplates=j.estado.mail;if(j.estado.links){if(j.estado.links.lp)LINKS_SALVOS[m].lp=j.estado.links.lp;if(j.estado.links.lr!==undefined)LINKS_SALVOS[m].lr=j.estado.links.lr}MANV=j.estado.man||{};DONO=m;GRADE_STATE=Object.assign({locked:false,lockedAt:"",version:0,priority:{},rooms:{},snapshotMan:{},base:null,baseRooms:null,baseAt:""},j.estado.grade||{});try{localStorage.setItem("sdcv_cfg",JSON.stringify(CFG));localStorage.setItem("sdcv_lp_"+m,LINKS_SALVOS[m].lp||"");localStorage.setItem(manK(),JSON.stringify(MANV));localStorage.setItem(gradeK(),JSON.stringify(GRADE_STATE))}catch(e){}baseUndo();drawCfg();drawH();drawG();agendarCalc();return poll?"configurações":false}
  catch(e){if(poll)throw e;sav("⚠ Não consegui ler as configurações da planilha: "+e.message,"er");ES.a=false;indSave()}}
 function drawQ(){const el=$("pr_g"),pg=GRD&&GRD.pg;
  if(!pg){$("pr_bar").hidden=true;el.innerHTML='<p class="mut" style="padding:8px">Sem dados ainda: carregue os projetos em Avaliação e os avaliadores (SEMCITEC).</p>';return}
@@ -1040,7 +1042,7 @@ function drawQ(){const el=$("pr_g"),pg=GRD&&GRD.pg;
 const travar=(p,a)=>PRF[p.id]={nome:a.nome,inst:a.inst,email:a.email||"",t:p.titulo,pi:p.inst,em:agora()};
 $("pr_g").addEventListener("click",e=>{const b=e.target.closest("[data-pq]");if(!b)return;const p=[...QP.entries()].find(([,v])=>String(v.id)===b.dataset.pq);if(p){$("pr_p").value=p[0];$("pr_a").focus()}});
 $("pr_b").onclick=()=>{const q=$("pr_p").value.trim(),f=fold(q);let p=QP.get(q);if(!p){const m=[...QP.values()].filter(v=>String(v.id)===q||(f&&fold(v.titulo).includes(f)));if(m.length===1)p=m[0]}
- if(!p)return st("Projeto não encontrado ou ambíguo: digite o nome/ID e escolha da lista.","er");
+ if(!p)return st("Projeto não encontrado ou ambíguo: digite o nome/ID e escolha da lista.","er");if(!seguro("Trocar o avaliador do projeto "+p.id+" na pré-avaliação? Isso já trava o projeto."))return;
  const v=$("pr_a").value;if(v==="auto")delete PRF[p.id];else{const c=GRD.pg.cols.find(c=>c.a.nome===v);if(!c)return;travar(p,c.a);if(conf(p,c.a.inst))st(`Atenção: ${c.a.nome} é da mesma instituição do projeto (conflito).`,"er")}
  salvarPre();agendarCalc();$("pr_p").value=""};
 $("pr_t").onclick=()=>{GRD.pg.cols.forEach(c=>c.pr.forEach(p=>{if(!PRF[p.id])travar(p,c.a)}));salvarPre();agendarCalc();st("Pré-avaliação travada: esses avaliadores não mudam mais.","ok")};
@@ -1212,6 +1214,25 @@ $("pinP").onclick=()=>pinPrint($("pinArea"),"todas-as-instituicoes");$("pinX").o
 
 $("saveInd").style.cursor="pointer";$("saveInd").onclick=detalheSave;
 $("bPing").onclick=async()=>{const o=[];for(const av of[false,true]){const nm=av?"Avaliadores":"Projetos";try{const j=await chamar(modo,{acao:"ping"},av);const d=av?j.avaliadores:j.projetos;if(!d)throw new Error(av?"o endereço de avaliadores não é um script de avaliadores (ou é versão antiga)":"o endereço de projetos não é um script de projetos (ou é versão antiga)");o.push(nm+": OK — "+d.planilha+" / aba "+d.aba+(!av&&d.temColunaId===false?" (SEM coluna 'id da submissão')":""))}catch(e){o.push(nm+": FALHOU — "+e.message)}}alert(o.join("\n"))};
+// ===== MODO DE SEGURANÇA: caixa "Tem certeza?" antes de ações que mudam a grade (liga/desliga no topo; fica salvo no navegador) =====
+let MODO_SEG=true;try{MODO_SEG=localStorage.getItem("sdcv_modo_seg")!=="0"}catch(e){}
+function seguro(msg,reverter){if(!MODO_SEG)return true;if(confirm("🛡 Modo de segurança\n\n"+msg+"\n\nTem certeza?"))return true;try{if(reverter)reverter()}catch(e){}st("Ação cancelada: nada foi alterado.","");return false}
+$("segTog").checked=MODO_SEG;$("segTog").onchange=()=>{if(!$("segTog").checked&&!confirm("Desligar o modo de segurança? As confirmações \"Tem certeza?\" deixarão de aparecer.")){$("segTog").checked=true;return}MODO_SEG=$("segTog").checked;try{localStorage.setItem("sdcv_modo_seg",MODO_SEG?"1":"0")}catch(e){}st(MODO_SEG?"Modo de segurança ligado.":"Modo de segurança desligado.","ok")};
+// ===== DESFAZER (por núcleo): guarda o estado anterior de horários/configurações/ajustes da grade a cada alteração salva =====
+// Não desfaz: edições de horários feitas por avaliador na aba Avaliadores (essas já foram gravadas na planilha dos avaliadores).
+const UNDO={SEMCITEC:[],FECEG:[]};let UNDO_BASE=null,UNDO_BUSY=false,UNDO_TS=0;
+const estUndo=()=>{const c={...CFG[modo]};delete c.emailTemplates;const g={...GRADE_STATE};delete g.base;delete g.baseRooms;delete g.baseAt;return JSON.stringify({cfg:c,man:MANV,grade:g})};
+function btnUndo(){const b=$("bUndo");if(!b)return;const n=(UNDO[modo]||[]).length;b.disabled=!n;b.textContent="↶ Desfazer"+(n?" ("+n+")":"")}
+function baseUndo(){try{if(DONO!==modo)return;UNDO_BASE={m:modo,s:estUndo()};btnUndo()}catch(e){}}
+function marcarUndo(){try{if(UNDO_BUSY||DONO!==modo)return;const now=estUndo();if(!UNDO_BASE||UNDO_BASE.m!==modo){UNDO_BASE={m:modo,s:now};return}
+ if(UNDO_BASE.s!==now){const p=UNDO[modo],t=Date.now();if(!(p.length&&t-UNDO_TS<800)){p.push(UNDO_BASE.s);if(p.length>30)p.shift()}UNDO_TS=t;UNDO_BASE={m:modo,s:now}}btnUndo()}catch(e){}}
+function desfazer(){const p=UNDO[modo];if(!p||!p.length)return st("Não há alteração para desfazer neste núcleo.","er");if(DONO!==modo)return;if(!seguro("Desfazer a última alteração deste núcleo?"))return;
+ const o=JSON.parse(p.pop()),c=CFG[modo],et=c.emailTemplates;Object.keys(c).forEach(k=>delete c[k]);Object.assign(c,o.cfg);if(et)c.emailTemplates=et;
+ const b={base:GRADE_STATE.base,baseRooms:GRADE_STATE.baseRooms,baseAt:GRADE_STATE.baseAt};MANV=o.man||{};GRADE_STATE=Object.assign({locked:false,lockedAt:"",version:0,priority:{},rooms:{},snapshotMan:{},base:null,baseRooms:null,baseAt:""},o.grade,b);
+ UNDO_BUSY=true;try{salvarCfg();salvarMan();salvarGradeState()}finally{UNDO_BUSY=false}baseUndo();
+ try{if(typeof c.limite==="number")$("lim").value=c.limite;refInst()}catch(e){}
+ drawCfg();drawH();draw("a");drawG();agendarCalc();st("Última alteração desfeita"+(p.length?` (restam ${p.length} para desfazer)`:"")+".","ok")}
+$("bUndo").onclick=desfazer;
 setModo("SEMCITEC");
 // ===== MOTOR DA ATUALIZAÇÃO AUTOMÁTICA (a cada AUTO.ms, adaptativo) =====
 // Planilhas lidas por CSV (projetos, excluídos, avaliadores, recomendações, modelos de e-mail): a cada ciclo.
