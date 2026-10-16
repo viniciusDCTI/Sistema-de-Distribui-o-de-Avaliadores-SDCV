@@ -1297,4 +1297,378 @@ $("autoInd").onclick=()=>{AUTO.on=!AUTO.on;try{localStorage.setItem("sdcv_auto",
 $("autoNow").onclick=()=>{clearTimeout(AUTO.t);tickAuto(true)};
 try{AUTO.on=localStorage.getItem("sdcv_auto")!=="0"}catch(e){}
 pintarAuto();agendarAuto(3000);
+</script>
+<script>
+// ============================================================================
+// MÓDULO DE SEGURANÇA — avisos, Desfazer/Refazer e Backup (adicionado ao final)
+// Não altera a lógica existente: só observa o estado, pede confirmação antes de
+// ações sensíveis e guarda cópias de segurança.
+// ============================================================================
+(()=>{
+"use strict";
+if(window.__SDCV_SEG)return;
+
+/* ---------- utilidades ---------- */
+const LS=window.localStorage;
+const $=id=>document.getElementById(id);
+const clone=o=>JSON.parse(JSON.stringify(o===undefined?null:o));
+const H=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const carimbo=(d=new Date())=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}`;
+const hora=t=>new Date(t).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"});
+const ls={get:k=>{try{return LS.getItem(k)}catch(e){return null}},set:(k,v)=>{try{LS.setItem(k,v);return true}catch(e){return false}}};
+const hashS=s=>{let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return String(h>>>0)};
+const norm=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+const seguro=f=>{try{return f()}catch(e){return 0}};
+
+const SEG={bypass:false,restaurando:false,label:"",labelAte:0,ultInput:0};
+const MAXMEM=30,MAXRING=6;
+let T=[],ix=-1,cur="",pend="",hModo="",readyAt=0,iniciando=false,RING=[],pT=null;
+
+/* ---------- armazenamento grande (IndexedDB), para não ocupar o localStorage ---------- */
+const DB={db:null,
+ open(){return new Promise(r=>{try{const q=indexedDB.open("sdcv_seg",1);q.onupgradeneeded=()=>q.result.createObjectStore("kv");q.onsuccess=()=>{this.db=q.result;r(true)};q.onerror=()=>r(false);q.onblocked=()=>r(false)}catch(e){r(false)}})},
+ get(k){return new Promise(r=>{if(!this.db)return r(null);try{const q=this.db.transaction("kv").objectStore("kv").get(k);q.onsuccess=()=>r(q.result===undefined?null:q.result);q.onerror=()=>r(null)}catch(e){r(null)}})},
+ set(k,v){return new Promise(r=>{if(!this.db)return r(false);try{const tx=this.db.transaction("kv","readwrite");tx.objectStore("kv").put(v,k);tx.oncomplete=()=>r(true);tx.onerror=()=>r(false);tx.onabort=()=>r(false)}catch(e){r(false)}})}};
+
+/* ---------- estilo ---------- */
+const css=document.createElement("style");
+css.textContent=`
+.segOv{position:fixed;inset:0;background:rgba(10,20,35,.55);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px}
+.segBox{background:#fff;color:var(--ink,#16263b);border-radius:12px;max-width:540px;width:100%;padding:20px 22px;box-shadow:0 20px 60px #0006;border-top:6px solid #d98a00;max-height:92vh;overflow:auto}
+.segBox.crit{border-top-color:var(--er,#b3261e)}
+.segH{font-weight:800;font-size:.78rem;letter-spacing:.05em;text-transform:uppercase;color:#a56200}
+.segBox.crit .segH{color:var(--er,#b3261e)}
+.segBox h3{margin:4px 0 8px;font-size:1.15rem}
+.segM{line-height:1.5}
+.segQ{background:#f4f6fa;border:1px solid var(--line,#d7dfea);border-radius:8px;padding:8px 10px;margin:8px 0;font-size:.85rem;word-break:break-word}
+.segS{margin-top:12px;padding:8px 10px;background:#eef6ff;border:1px solid #cfe0f7;border-radius:8px;font-size:.85rem}
+.segL{margin-top:12px;display:block}
+.segR{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+.segR button.er{background:var(--er,#b3261e);color:#fff;border-color:var(--er,#b3261e)}
+.segR button:disabled{opacity:.45;cursor:not-allowed}
+#segToast{position:fixed;left:16px;bottom:16px;z-index:9998;background:#16263b;color:#fff;padding:10px 14px;border-radius:10px;display:flex;gap:12px;align-items:center;box-shadow:0 8px 28px #0005;max-width:min(580px,calc(100vw - 32px));font-size:.9rem}
+#segToast[hidden]{display:none}
+#segToast button{background:#fff;color:#16263b;border:0;border-radius:6px;padding:4px 10px;font-weight:700;cursor:pointer;white-space:nowrap}
+.segList{max-height:230px;overflow:auto;border:1px solid var(--line,#d7dfea);border-radius:8px;margin-top:6px}
+.segIt{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--line,#d7dfea);font-size:.85rem}
+.segIt:last-child{border-bottom:0}.segIt.cur{background:#eef6ff}
+.segIt button{padding:2px 9px;font-size:.8rem;white-space:nowrap}
+#segPanel details{margin-top:10px}
+`;
+document.head.appendChild(css);
+
+/* ---------- avisos rápidos (toast) ---------- */
+function toast(msg,btn,fn,ms){
+ let b=$("segToast");if(!b){b=document.createElement("div");b.id="segToast";b.setAttribute("role","status");document.body.appendChild(b)}
+ b.innerHTML="";const sp=document.createElement("span");sp.textContent=msg;b.appendChild(sp);
+ if(btn){const x=document.createElement("button");x.textContent=btn;x.onclick=()=>{b.hidden=true;fn()};b.appendChild(x)}
+ b.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>{b.hidden=true},ms||9000)}
+
+/* ---------- janela de confirmação ---------- */
+function modal({t,m,n,w,ok}){
+ return new Promise(res=>{
+  const crit=n==="critico",prev=document.activeElement,ov=document.createElement("div");ov.className="segOv";
+  ov.innerHTML=`<div class="segBox ${crit?"crit":""}" role="alertdialog" aria-modal="true" aria-labelledby="segT"><div class="segH">${crit?"🛑 Ação crítica":"⚠ Atenção"}</div><h3 id="segT">${H(t)}</h3><div class="segM">${m}</div><div class="segS">🛡 Antes de continuar o sistema guarda um ponto de restauração. Se algo sair errado, use <b>↶ Desfazer</b> (ou Ctrl+Z).</div>${crit?`<label class="segL">Para continuar, digite <b>${H(w)}</b>:<input id="segW" autocomplete="off" spellcheck="false" style="margin-top:6px"></label>`:""}<div class="segR"><button id="segNo" type="button">Cancelar</button><button id="segYes" type="button" class="${crit?"er":"p"}"${crit?" disabled":""}>${H(ok||"Continuar")}</button></div></div>`;
+  document.body.appendChild(ov);
+  const fim=v=>{document.removeEventListener("keydown",kd,true);ov.remove();try{prev&&prev.focus&&prev.focus()}catch(e){}res(v)};
+  const kd=e=>{if(e.key==="Escape"){e.stopPropagation();fim(false)}};
+  document.addEventListener("keydown",kd,true);
+  ov.querySelector("#segNo").onclick=()=>fim(false);
+  ov.querySelector("#segYes").onclick=()=>fim(true);
+  const inp=ov.querySelector("#segW");
+  if(inp)inp.oninput=()=>{ov.querySelector("#segYes").disabled=inp.value.trim().toUpperCase()!==String(w).toUpperCase()};
+  ov.querySelector("#segNo").focus()})}
+
+/* ---------- coleta do estado "restaurável" do núcleo aberto ---------- */
+function coletar(raw){
+ const av=[];
+ seguro(()=>A.forEach(a=>{if(a&&a.k0)av.push({k0:a.k0,disp:a.disp,aprov:!!a.aprov,pre:!!a.pre,areas:a.areas,email:a.email,nome:a.nome,inst:a.inst})}));
+ const o={m:modo,cfg:CFG[modo],man:MANV||{},grade:GRADE_STATE||{},prf:PRF||{},ovr:OVR||{},av};
+ return raw?o:clone(o)}
+
+function rotular(a,b){
+ if(!a)return "Estado inicial";
+ const p=[],j=x=>JSON.stringify(x===undefined?null:x),ga=a.grade||{},gb=b.grade||{};let g=false;
+ if(!!ga.locked!==!!gb.locked){p.push(gb.locked?"Grade presencial travada":"Grade presencial destravada");g=true}
+ else if(j(ga.base)!==j(gb.base)||j(ga.baseRooms)!==j(gb.baseRooms)){p.push(gb.base?(ga.base?"Grade fixa atualizada":"Grade fixa gerada"):"Grade fixa descartada (refazer distribuição)");g=true}
+ if(j(a.man)!==j(b.man))p.push("Ajustes manuais da grade");
+ if(!g&&j(ga)!==j(gb)&&!p.length)p.push("Grade (prioridades/salas)");
+ if(j(a.prf)!==j(b.prf))p.push("Pré-avaliação");
+ if(j(a.av)!==j(b.av)||j(a.ovr)!==j(b.ovr))p.push("Avaliadores (horários/aprovado/pré)");
+ if(j(a.cfg)!==j(b.cfg)){const la=(a.cfg||{}).limite,lb=(b.cfg||{}).limite;p.push(la!==lb?`Limite total de projetos: ${la===undefined?"padrão":la} → ${lb===undefined?"padrão":lb}`:"Configurações")}
+ return p.join(" + ")||"Alteração"}
+
+/* ---------- histórico (Desfazer / Refazer) ---------- */
+function persistir(){clearTimeout(pT);const m=hModo;pT=setTimeout(()=>{if(m&&T.length)DB.set("hist_"+m,{T,ix})},400)}
+
+function commit(s,o,quieto){
+ const usaLabel=SEG.label&&Date.now()<SEG.labelAte,auto=!usaLabel&&Date.now()-SEG.ultInput>8000,rot=rotular(T[ix]&&T[ix].o,o);
+ let lb=usaLabel?`${SEG.label} (${rot})`:(auto?"Atualização automática: "+rot:rot);
+ SEG.label="";T.length=ix+1;T.push({t:Date.now(),label:lb,o:clone(o),auto});ix=T.length-1;
+ while(T.length>MAXMEM){T.shift();ix--}
+ cur=s;pend="";persistir();render();
+ if(!auto&&!quieto)toast("✔ "+lb,"Desfazer",desfazer)}
+
+function flushHist(){seguro(()=>{if(ix<0||SEG.restaurando||iniciando)return;const o=coletar(true),s=JSON.stringify(o);if(s!==cur)commit(s,o,true)})}
+
+function trocarModo(){
+ if(hModo&&ix>=0)DB.set("hist_"+hModo,{T,ix});
+ hModo=modo;T=[];ix=-1;cur="";pend="";readyAt=0;iniciando=false;render()}
+
+function iniciar(s,o){
+ const m=modo;iniciando=true;
+ const novo=()=>{T=[{t:Date.now(),label:"Estado ao abrir o sistema",o:clone(o)}];ix=0;cur=s};
+ DB.get("hist_"+m).then(p=>{
+  if(m!==modo||hModo!==m)return;
+  if(p&&Array.isArray(p.T)&&p.T.length){
+   T=p.T;ix=Math.max(0,Math.min(p.ix|0,T.length-1));cur=s;
+   if(JSON.stringify(T[ix].o)!==s){T.length=ix+1;T.push({t:Date.now(),label:"Dados atualizados (planilha ou sessão anterior)",o:clone(o),auto:true});ix=T.length-1}
+  }else novo()
+ }).catch(()=>{if(m===modo)novo()}).then(()=>{iniciando=false;persistir();render()})}
+
+function tick(){
+ seguro(()=>{
+  if(SEG.restaurando||iniciando||document.hidden)return;
+  if(hModo!==modo){trocarModo();return}
+  if(typeof PROJ_OK==="undefined"||!PROJ_OK){readyAt=0;return}
+  if(!readyAt){readyAt=Date.now();return}
+  if(Date.now()-readyAt<12000)return;
+  const o=coletar(true),s=JSON.stringify(o);
+  if(ix<0){iniciar(s,o);return}
+  if(s===cur){pend="";return}
+  if(pend!==s){pend=s;return}
+  commit(s,o)})}
+
+/* aplica um estado guardado: memória + navegador + planilhas (mesmo caminho que as edições normais) */
+function aplicarEstado(e,reg){
+ const m=modo;SEG.restaurando=true;render();
+ try{
+  const c=clone(e.cfg||{});Object.keys(CFG[m]).forEach(k=>delete CFG[m][k]);Object.assign(CFG[m],c);
+  MANV=clone(e.man||{});
+  GRADE_STATE=Object.assign({locked:false,lockedAt:"",version:0,priority:{},rooms:{},snapshotMan:{},base:null,baseRooms:null,baseAt:""},clone(e.grade||{}));
+  PRF=clone(e.prf||{});OVR=clone(e.ovr||{});
+  ls.set("sdcv_cfg",JSON.stringify(CFG));ls.set(manK(),JSON.stringify(MANV));ls.set(gradeK(),JSON.stringify(GRADE_STATE));ls.set(preK(),JSON.stringify(PRF));ls.set(ovrK(),JSON.stringify(OVR));
+  const lista=e.av||Object.entries(e.ovr||{}).map(([k0,v])=>Object.assign({k0},v));
+  lista.forEach(s=>{
+   const a=A.find(x=>x.k0===s.k0);if(!a)return;let ch=false;
+   ["aprov","pre"].forEach(f=>{if(s[f]!==undefined&&!!a[f]!==!!s[f]){a[f]=!!s[f];ch=true}});
+   ["disp","areas","email","nome","inst"].forEach(f=>{if(s[f]!==undefined&&JSON.stringify(a[f])!==JSON.stringify(s[f])){a[f]=clone(s[f]);ch=true}});
+   if(ch)salvarOvr(a)});
+  seguro(()=>aposCfgPlanilha(CFG[m]));
+  agendarEst();
+  if(m==="SEMCITEC")seguro(()=>salvarPre());
+  [()=>drawCfg(),()=>drawH(),()=>drawG(),()=>drawQ(),()=>drawV(),()=>drawN()].forEach(f=>seguro(f));
+  seguro(()=>agendarCalc());
+ }catch(err){toast("⚠ Não consegui aplicar tudo: "+(err&&err.message||err),null,null,14000)}
+ setTimeout(()=>{ // espera a grade recalcular e fixa o estado "assentado"
+  seguro(()=>{
+   const o=coletar(true),s=JSON.stringify(o);
+   if(reg&&reg.novo){T.length=ix+1;T.push({t:Date.now(),label:reg.label,o:clone(o)});ix=T.length-1;while(T.length>MAXMEM){T.shift();ix--}}
+   else if(T[ix])T[ix].o=clone(o);
+   cur=s;pend="";persistir()});
+  SEG.restaurando=false;render()},2000)}
+
+function irPara(i){
+ if(SEG.restaurando||iniciando||i<0||i>=T.length||i===ix)return;
+ ix=i;aplicarEstado(clone(T[i].o))}
+function desfazer(){
+ flushHist();
+ if(ix>0&&!SEG.restaurando){const l=T[ix].label;irPara(ix-1);toast("↶ Desfeito: "+l,"Refazer",refazer)}
+ else toast("Nada para desfazer.",null,null,3000)}
+function refazer(){
+ flushHist();
+ if(ix>=0&&ix<T.length-1&&!SEG.restaurando){irPara(ix+1);toast("↷ Refeito: "+T[ix].label,"Desfazer",desfazer)}
+ else toast("Nada para refazer.",null,null,3000)}
+
+/* ---------- backup ---------- */
+function montarBackup(rot){
+ const est={},rd=k=>{try{return JSON.parse(ls.get(k))}catch(e){return null}};
+ ["SEMCITEC","FECEG"].forEach(m=>{
+  if(m===modo)est[m]=coletar();
+  else est[m]={m,cfg:clone(CFG[m]),man:rd("sdcv_man_"+m)||{},grade:rd("sdcv_grade_"+m)||{},prf:rd("sdcv_pre_"+m)||{},ovr:rd("sdcv_ovr_"+m)||{},av:null}});
+ const links={};["SEMCITEC","FECEG"].forEach(m=>{const l=LINKS_SALVOS[m]||{};links[m]={lp:l.lp||"",la:l.la||"",lr:l.lr||""}});
+ const outros={};seguro(()=>{for(let i=0;i<LS.length;i++){const k=LS.key(i);if(/^sdcv_(email_status|email_hor)_/.test(k))outros[k]=ls.get(k)}});
+ return {app:"SDCV",versao:1,criadoEm:new Date().toISOString(),rotulo:rot,modoAberto:modo,estados:est,links,outros}}
+
+function salvarAnel(rot,b){
+ b=b||montarBackup(rot);
+ const sig=hashS(JSON.stringify(b.estados)),ult=RING[RING.length-1];
+ if(ult&&ult.sig===sig)return ult;
+ const it={id:Date.now(),t:Date.now(),rot,modo,sig,dados:b};
+ RING.push(it);while(RING.length>MAXRING)RING.shift();
+ DB.set("ring",RING);render();return it}
+
+function baixarBlob(blob,nome){
+ const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=nome;a.style.display="none";
+ document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}
+
+function planilhaGrade(){
+ const wb=XLSX.utils.book_new(),add=(n,rows)=>{if(rows&&rows.length)XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),n.slice(0,31))};
+ const mp=new Map();seguro(()=>[...P,...O].forEach(p=>mp.set(String(p.id),p)));
+ const nm=k=>String(k).split("|")[0],nomes=l=>(l||[]).map(a=>a&&(a.nome||a)).filter(Boolean).join("; ");
+ const gs=GRADE_STATE||{},B=gs.base||{};
+ add("Grade fixa (projetos)",Object.entries(B).map(([id,v])=>{const p=mp.get(String(id))||{};return{"Horário":v.l||"","Sala":v.s||"","ID":id,"Título":p.titulo||"","Instituição":p.inst||"","Avaliadores (grade fixa)":(v.a||[]).map(nm).join("; ")}}).sort((a,b)=>String(a["Horário"]).localeCompare(String(b["Horário"]))||String(a["Sala"]).localeCompare(String(b["Sala"]))||String(a.ID).localeCompare(String(b.ID),"pt",{numeric:true})));
+ add("Avaliadores por sala",Object.entries(gs.baseRooms||gs.rooms||{}).map(([k,l])=>{const[h,s]=k.split("\t");return{"Horário":h,"Sala":s||"","Avaliadores":(l||[]).map(nm).join("; ")}}));
+ seguro(()=>{const g=GRD&&GRD.g,rows=[];
+  if(g&&g.f)g.cols.forEach(c=>c.pr.forEach(p=>rows.push({"Horário":c.k||"","ID":p.id,"Título":p.titulo,"Instituição":p.inst,"Avaliadores":nomes(p.avals)})));
+  else if(Array.isArray(g))g.forEach(c=>c.salas.forEach(r=>{const av=nomes(r.av);r.pr.forEach(p=>rows.push({"Horário":c.x&&c.x.label||"","Sala":r.s,"ID":p.id,"Título":p.titulo,"Instituição":p.inst,"Avaliadores da sala":av}))}));
+  add("Grade atual (tela)",rows)});
+ seguro(()=>{const pg=GRD&&GRD.pg;if(!pg)return;const rows=[];
+  pg.cols.forEach(c=>c.pr.forEach(p=>rows.push({"Avaliador":c.a.nome,"Instituição do avaliador":c.a.inst,"ID":p.id,"Título":p.titulo,"Instituição":p.inst,"Travado":PRF[p.id]?"Sim":"Não"})));
+  (pg.sem||[]).forEach(p=>rows.push({"Avaliador":"SEM AVALIADOR","Instituição do avaliador":"","ID":p.id,"Título":p.titulo,"Instituição":p.inst,"Travado":"Não"}));
+  add("Pré-avaliação",rows)});
+ seguro(()=>add("Avaliadores",A.map(a=>({"Nome":a.nome,"Instituição":a.inst,"E-mail":a.email,"Aprovado":a.aprov?"Sim":"Não","Pré-avaliação":a.pre?"Sim":"Não","Horários":a.disp}))));
+ add("Ajustes manuais",Object.entries(MANV||{}).map(([id,v])=>({"ID":id,"Horário":v.l||"","Sala":v.s||"","Travado":v._lock?"Sim":"Não"})));
+ add("Info",[{"Núcleo":modo,"Gerado em":hora(Date.now()),"Grade travada":gs.locked?"Sim, em "+(gs.lockedAt||"?"):"Não","Versão da trava":gs.version||0,"Projetos na grade fixa":Object.keys(B).length}]);
+ return wb}
+
+function baixarBackup(auto){
+ const rot=auto?"Backup automático (24 h)":"Backup manual",b=montarBackup(rot);
+ salvarAnel(rot,b);
+ baixarBlob(new Blob([JSON.stringify(b)],{type:"application/json"}),`SDCV_backup_${carimbo()}.json`);
+ setTimeout(()=>{try{XLSX.writeFile(planilhaGrade(),`SDCV_grade_${modo}_${carimbo()}.xlsx`)}catch(e){toast("⚠ Não consegui gerar a planilha da grade: "+e.message,null,null,12000)}},900);
+ ls.set("sdcv_bkp_ultimo",String(Date.now()));ls.set("sdcv_bkp_tipo",auto?"automático":"manual");
+ toast((auto?"💾 Backup automático das 24 h feito":"💾 Backup feito")+": 2 arquivos baixados (backup restaurável .json + planilha da grade).",null,null,9000);render()}
+
+function checarAuto(){
+ seguro(()=>{
+  if(ls.get("sdcv_bkp_auto")==="0"||SEG.restaurando||document.hidden)return;
+  if(typeof PROJ_OK==="undefined"||!PROJ_OK||!readyAt||Date.now()-readyAt<20000)return;
+  if(Date.now()-(+ls.get("sdcv_bkp_ultimo")||0)<864e5)return;
+  baixarBackup(true)})}
+
+async function restaurarBackup(b,orig){
+ if(!b||b.app!=="SDCV"||!b.estados)return toast("⚠ Arquivo inválido: não é um backup do SDCV.",null,null,8000);
+ const e=b.estados[modo];if(!e)return toast("⚠ Este backup não tem dados do núcleo "+modo+".",null,null,8000);
+ const ok=await modal({n:"critico",t:"Restaurar backup",w:"RESTAURAR",ok:"Restaurar",m:`Backup de <b>${H(hora(b.criadoEm))}</b> (${H(b.rotulo||"")}). Isto <b>substitui</b> a grade, os ajustes manuais, a pré-avaliação, os horários/aprovados dos avaliadores e as configurações do núcleo <b>${H(modo)}</b> pelo conteúdo do backup, e grava isso nas planilhas.<div class="segQ">Não altera projetos (eles vêm da planilha oficial) nem o outro núcleo. Para restaurar o outro núcleo, abra-o e restaure o mesmo arquivo.</div>`});
+ if(!ok)return;
+ flushHist();salvarAnel("Antes de restaurar backup");
+ aplicarEstado(clone(e),{novo:true,label:"Backup restaurado ("+orig+")"});
+ toast("♻ Backup restaurado e enviado às planilhas.",null,null,8000)}
+
+/* ---------- avisos de segurança antes de ações sensíveis ---------- */
+function prepararAcao(titulo){flushHist();salvarAnel("Antes de: "+titulo);SEG.label=titulo;SEG.labelAte=Date.now()+20000}
+
+const RULES={
+ gRedo:{n:"critico",t:"Refazer a distribuição do zero",w:"REFAZER",ok:"Refazer distribuição",m:"Isto <b>descarta a grade fixa atual</b> (horário, sala e avaliadores de cada projeto) e gera uma nova. Projetos podem mudar de horário e de sala. Se você já enviou e-mails com horários, eles deixam de bater com a grade."},
+ pr_r:{n:"critico",t:"Refazer a pré-avaliação do zero",w:"REFAZER",ok:"Refazer pré-avaliação",m:"Isto <b>apaga todas as travas</b> da pré-avaliação e redistribui os projetos entre os avaliadores. Quem já foi avisado pode mudar."},
+ bro:{n:"critico",t:"Descartar minhas edições dos avaliadores",w:"DESCARTAR",ok:"Descartar edições",m:"Volta aos dados da planilha: horários, “aprovado” e “pré-avaliação” alterados aqui no sistema são perdidos neste navegador."},
+ gLock:{n:"atencao",t:"Travar a grade presencial",ok:"Travar grade",m:"Depois de travada, projetos e avaliadores não podem mais ser movidos até destravar. Confira a grade antes."},
+ gUnlock:{n:"atencao",t:"Destravar a grade presencial",ok:"Destravar grade",m:"Os ajustes manuais feitos antes da trava são restaurados e a grade volta a aceitar mudanças. A grade continua fixa como foi gerada."},
+ pr_t:{n:"atencao",t:"Travar a pré-avaliação",ok:"Travar pré-avaliação",m:"Os avaliadores atuais de cada projeto ficam fixos e não mudam mais, mesmo que você altere avaliadores ou horários."},
+ mvc:{n:"atencao",t:"Limpar ajustes manuais da grade",ok:"Limpar ajustes",m:"Todos os movimentos manuais de projetos entre horários/salas serão removidos."},
+ vmc:{n:"atencao",t:"Limpar movimentos manuais (FECEG)",ok:"Limpar movimentos",m:"Os movimentos manuais de projetos entre avaliadores/turnos serão removidos."},
+ bl:{n:"atencao",t:"Recarregar projetos do Drive",ok:"Recarregar",m:"Recarrega os projetos a partir da planilha do núcleo. Se houver alterações ainda aguardando envio (veja o indicador de salvamento no topo), espere terminar antes."},
+ bca:{n:"atencao",t:"Carregar avaliadores",ok:"Carregar",m:"Recarrega a lista de avaliadores a partir do link ou arquivo informado. Isso muda quem entra na grade e na pré-avaliação."},
+ fa:{n:"atencao",t:"Carregar arquivo de avaliadores",ok:"Escolher arquivo",m:"O arquivo escolhido vai substituir a lista de avaliadores em uso. Isso muda quem entra na grade e na pré-avaliação."},
+ sy:{cb:true,n:"critico",t:"Desligar a sincronização de projetos",w:"DESLIGAR",ok:"Desligar",m:"Com a sincronização desligada, edições, exclusões e a fila de espera <b>deixam de ser gravadas na planilha oficial</b> de projetos. Os outros computadores não verão suas mudanças."},
+ syA:{cb:true,n:"critico",t:"Desligar a gravação na planilha de avaliadores",w:"DESLIGAR",ok:"Desligar",m:"Com isso desligado, horários, “aprovado” e pré-avaliação editados aqui <b>deixam de ser gravados na planilha original</b> dos avaliadores."}
+};
+
+function resumoLinha(el){const tr=el.closest("tr");return tr?tr.innerText.replace(/[✕×]/g,"").replace(/\s+/g," ").trim().slice(0,170):""}
+function regraExcluir(el){
+ const proj=!!el.closest("#sP,#sX"),tx=resumoLinha(el);
+ return{n:"atencao",t:proj?"Excluir projeto":"Excluir linha",ok:"Excluir",m:`Você vai excluir:<div class="segQ">${H(tx||"(linha)")}</div>${proj?"Com a sincronização ligada, a exclusão também é aplicada na planilha oficial do núcleo (a linha vai para a aba “Excluídos”).":"A linha sai da lista e dos arquivos que você baixar."}`}}
+
+document.addEventListener("click",async e=>{
+ if(SEG.bypass)return;
+ const tg=e.target;if(!tg||!tg.closest)return;
+ const el=tg.closest("[data-del],button,input");if(!el)return;
+ const r=el.hasAttribute("data-del")?regraExcluir(el):RULES[el.id];
+ if(!r||el.disabled)return;
+ if(r.cb&&el.checked)return; // caixa de seleção: só avisa ao DESLIGAR (no clique, checked já é o novo valor)
+ e.preventDefault();e.stopImmediatePropagation();
+ const ok=await modal(r);
+ if(!ok)return;
+ prepararAcao(r.t);
+ SEG.bypass=true;
+ try{if(r.cb){el.checked=false;el.dispatchEvent(new Event("change",{bubbles:true}))}else el.click()}finally{SEG.bypass=false}
+},true);
+
+// os confirm() antigos do sistema ficam "aceitos" quando a ação já passou pela nossa confirmação
+const _confirm=window.confirm.bind(window);
+window.confirm=m=>SEG.bypass?true:_confirm(m);
+
+// mudança de Situação de projeto: avisa quando recusa/rejeita ou tira de "Aprovado"
+document.addEventListener("focusin",e=>{const s=e.target;if(s&&s.matches&&s.matches("select.sit"))s.dataset.segPrev=s.value},true);
+document.addEventListener("change",async e=>{
+ if(SEG.bypass)return;
+ const s=e.target;if(!s||!s.matches||!s.matches("select.sit"))return;
+ const v=s.value,nv=norm(v),prev=s.dataset.segPrev,np=norm(prev);
+ if(!(/recusad|rejeit|cancel|exclu|desclass|reprov/.test(nv)||(/aprovad/.test(np)&&!/aprovad/.test(nv))))return;
+ e.stopImmediatePropagation();
+ const ok=await modal({n:"atencao",t:"Mudar a situação do projeto",ok:"Mudar situação",m:`<div class="segQ">${H(resumoLinha(s))}</div>De <b>${H(prev||"?")}</b> para <b>${H(v)}</b>. Isso pode tirar o projeto da distribuição, da grade e do relatório; com a sincronização ligada, a mudança vai para a planilha oficial.`});
+ if(!ok){
+  if(prev!==undefined)s.value=prev;else{const i=[...s.options].findIndex(o=>o.defaultSelected);if(i>=0)s.selectedIndex=i}
+  return}
+ prepararAcao("Situação do projeto → "+v);
+ SEG.bypass=true;try{s.dispatchEvent(new Event("change",{bubbles:true}))}finally{SEG.bypass=false}
+ s.dataset.segPrev=s.value;
+},true);
+
+// avisa antes de fechar a página se ainda há algo sem gravar na planilha
+addEventListener("beforeunload",e=>{
+ const n=seguro(()=>PEND.length)+seguro(()=>PENDA.size)+(seguro(()=>MAILPEND)?1:0)+(seguro(()=>estPend)?1:0)+(seguro(()=>prePend)?1:0);
+ if(n>0){e.preventDefault();e.returnValue=""}});
+
+["click","keydown","change","input"].forEach(ev=>addEventListener(ev,()=>{SEG.ultInput=Date.now()},true));
+addEventListener("keydown",e=>{
+ if(!(e.ctrlKey||e.metaKey)||e.altKey)return;
+ const k=e.key.toLowerCase(),t=e.target;
+ if(t&&(t.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)))return;
+ if(k==="z"&&!e.shiftKey){e.preventDefault();desfazer()}
+ else if(k==="y"||(k==="z"&&e.shiftKey)){e.preventDefault();refazer()}});
+
+/* ---------- interface: botões no topo e painel em Configurações ---------- */
+function montarUI(){
+ const ref=$("autoNow");
+ if(ref&&!$("segUndo")){
+  ref.insertAdjacentHTML("afterend",`<button id="segUndo" type="button" style="padding:2px 9px;white-space:nowrap" disabled>↶ Desfazer</button><button id="segRedo" type="button" style="padding:2px 9px;white-space:nowrap" disabled>↷ Refazer</button><button id="segBk" type="button" style="padding:2px 9px" title="Backup e segurança" aria-label="Backup e segurança">💾</button>`);
+  $("segUndo").onclick=desfazer;$("segRedo").onclick=refazer;
+  $("segBk").onclick=()=>{const t=$("tC");if(t)t.click();setTimeout(()=>{const p=$("segPanel");if(p)p.scrollIntoView({behavior:"smooth",block:"start"})},80)}}
+ const sec=$("sC"),h2=sec&&sec.querySelector("h2");
+ if(h2&&!$("segPanel")){
+  h2.insertAdjacentHTML("afterend",`<div class="mailbox" id="segPanel" style="margin:0 0 14px"><h3 style="margin:0 0 4px">🛡 Segurança, histórico e backup</h3>
+<div class="mut">Ações sensíveis pedem confirmação. Cada mudança na grade, nos ajustes, na pré-avaliação, nos avaliadores e nas configurações vira um passo que dá para <b>desfazer e refazer</b> (também com Ctrl+Z / Ctrl+Y). Projetos ficam na planilha oficial e não entram no desfazer.</div>
+<div class="row" style="margin:10px 0 6px"><button id="segBkNow" type="button" class="p">💾 Baixar backup agora</button><button id="segPonto" type="button">Salvar ponto de restauração</button><button id="segRestFile" type="button">📂 Restaurar de um arquivo</button><input type="file" id="segFile" accept=".json,application/json" hidden></div>
+<label style="display:flex;gap:8px;align-items:center;font-weight:400;margin:6px 0 2px"><input type="checkbox" id="segAuto" style="width:auto"> Backup automático a cada 24 h enquanto o sistema estiver aberto (baixa os arquivos sozinho)</label>
+<div id="segSt" class="mut"></div>
+<details open><summary>Pontos de restauração neste navegador</summary><div id="segRing"></div></details>
+<details><summary>Histórico de passos (Desfazer / Refazer)</summary><div id="segHist"></div></details>
+<details><summary>ℹ O que o backup guarda</summary><p class="mut">Arquivo .json (restaurável): grade fixa, ajustes manuais, trava da grade, pré-avaliação, edições dos avaliadores, configurações e links dos dois núcleos. Planilha .xlsx (para conferir): grade fixa por horário/sala, avaliadores por sala, pré-avaliação, avaliadores e ajustes manuais do núcleo aberto. As planilhas oficiais do Google têm ainda o “Histórico de versões” do próprio Google Planilhas.</p></details></div>`);
+  const au=$("segAuto");au.checked=ls.get("sdcv_bkp_auto")!=="0";au.onchange=()=>{ls.set("sdcv_bkp_auto",au.checked?"1":"0");render()};
+  $("segBkNow").onclick=()=>baixarBackup(false);
+  $("segPonto").onclick=()=>{salvarAnel("Ponto manual");toast("✔ Ponto de restauração salvo neste navegador.",null,null,4000)};
+  $("segRestFile").onclick=()=>$("segFile").click();
+  $("segFile").onchange=async ev=>{const f=ev.target.files[0];ev.target.value="";if(!f)return;let o;try{o=JSON.parse(await f.text())}catch(x){return toast("⚠ Não consegui ler o arquivo como backup.",null,null,8000)}restaurarBackup(o,"arquivo "+f.name)};
+  $("segPanel").addEventListener("click",ev=>{
+   const b=ev.target.closest("button");if(!b)return;
+   if(b.dataset.segir!=null){flushHist();irPara(+b.dataset.segir)}
+   else if(b.dataset.segrest!=null){const x=RING.find(r=>String(r.id)===b.dataset.segrest);if(x)restaurarBackup(x.dados,"ponto de "+hora(x.t))}
+   else if(b.dataset.segbx!=null){const x=RING.find(r=>String(r.id)===b.dataset.segbx);if(x)baixarBlob(new Blob([JSON.stringify(x.dados)],{type:"application/json"}),`SDCV_backup_${carimbo(new Date(x.t))}.json`)}})}
+ render()}
+
+function render(){
+ seguro(()=>{
+  const u=$("segUndo"),r=$("segRedo");
+  if(u){const ok=ix>0&&!SEG.restaurando&&!iniciando;u.disabled=!ok;u.title=ok?"Desfazer: "+T[ix].label+" (Ctrl+Z)":"Nada para desfazer"}
+  if(r){const ok=ix>=0&&ix<T.length-1&&!SEG.restaurando&&!iniciando;r.disabled=!ok;r.title=ok?"Refazer: "+T[ix+1].label+" (Ctrl+Y)":"Nada para refazer"}
+  const hi=$("segHist");
+  if(hi)hi.innerHTML=T.length?`<div class="segList">`+T.map((x,i)=>[x,i]).reverse().map(([x,i])=>`<div class="segIt${i===ix?" cur":""}"><span>${H(hora(x.t))} · ${H(x.label)}</span>${i===ix?"<b>● atual</b>":`<button type="button" data-segir="${i}">${i<ix?"Voltar para aqui":"Avançar para aqui"}</button>`}</div>`).join("")+`</div>`:'<span class="mut">O histórico começa alguns segundos depois que os dados carregam.</span>';
+  const rg=$("segRing");
+  if(rg)rg.innerHTML=RING.length?`<div class="segList">`+[...RING].reverse().map(x=>`<div class="segIt"><span>${H(hora(x.t))} · ${H(x.rot)} · ${H(x.modo)}</span><span><button type="button" data-segrest="${x.id}">Restaurar</button> <button type="button" data-segbx="${x.id}">Baixar</button></span></div>`).join("")+`</div>`:'<span class="mut">Nenhum ponto salvo ainda. Eles são criados antes de ações sensíveis e a cada backup.</span>';
+  const st=$("segSt");
+  if(st){const u0=+ls.get("sdcv_bkp_ultimo")||0,auto=ls.get("sdcv_bkp_auto")!=="0";
+   st.textContent=(u0?`Último backup baixado: ${hora(u0)} (${ls.get("sdcv_bkp_tipo")||"manual"}). `:"Nenhum backup baixado ainda neste navegador. ")+(auto?(u0?`Próximo automático: ${hora(u0+864e5)} se o sistema estiver aberto (ou ao abrir).`:"O primeiro automático sai logo depois que os dados carregarem."):"Backup automático desligado.")}
+ })}
+
+/* ---------- partida ---------- */
+window.__SDCV_SEG={desfazer,refazer,backup:()=>baixarBackup(false),tick,irPara,get passos(){return T.map(x=>x.label)},get indice(){return ix}};
+montarUI();
+DB.open().then(async()=>{const r=await DB.get("ring");if(Array.isArray(r))RING=r;render()});
+setInterval(tick,1500);
+setInterval(checarAuto,60000);
+})();
+
 </script></body></html>
